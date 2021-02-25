@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <fstream>
+// #include <cmath>
 
 #include "dealiiheaders.h"
 #include "allparameters_str.h"
@@ -29,43 +30,73 @@ public:
     F_inv(StandardTensors<dim>::I),
     tau(SymmetricTensor<2, dim>()),
     Jc(SymmetricTensor<4, dim>())
+
+    // a_alpha(a_alpha),
+    // c_alpha(c_alpha),
+    // a_omega(a_omega),
+    // c_omega(c_omega)
   {}
 
   virtual ~PointHistory()
   {
+
     delete material;
     material = NULL;
   }
 
   void setup_lqp (const Parameters::AllParameters &parameters)
   {
-    material = new Material_Constitutive<dim>(parameters.lambdaA,
-            parameters.muA,parameters.lambdaM,parameters.muM,parameters.A, parameters.delta_psi);
+    material = new Material_Constitutive<dim>(parameters.C_A_11, parameters.C_A_12, parameters.C_A_13, parameters.C_A_33, parameters.C_A_44,
+              parameters.C_M_11, parameters.C_M_12, parameters.C_M_13, parameters.C_M_33, parameters.C_M_44, parameters.lambdaA,
+              parameters.muA,parameters.lambdaM,parameters.muM,parameters.A, parameters.delta_psi);
+              // parameters.a_alpha, parameters.c_alpha, parameters.a_omega, parameters.c_omega);
 
-    update_values(Tensor<2, dim>(), double (),double (),double (), double(), double(), Point<dim>() );
+    update_values(Tensor<2, dim>(), double (),double (),double (), double(), double(), Point<dim>(), double (),double (),double (), double() );
   }
 
   void update_values (const Tensor<2, dim> &Grad_u_n, const double c1, const double c2, const double c3,
-                      const double dt, const double landa, const Point<dim>  q_point )
+                      const double dt, const double landa, const Point<dim>  q_point ,
+                      const double a_alpha, const double c_alpha, const double a_omega, const double c_omega)
   {
 
 // Total deformation gradient
     F = (Tensor<2, dim>(StandardTensors<dim>::I) +  Grad_u_n);
+// Constamts for transformational strain
+    // double eps_1, eps_2, eps_3;
+    // eps_1 = (c_omega-a_alpha)/a_alpha;
+    // eps_2 = (2.*sqrt(3.)*a_omega - 3.*sqrt(3.)*a_alpha)/(3.*sqrt(3)*a_alpha);
+    // eps_3 = (a_omega-c_alpha)/c_alpha;
+    Tensor<2, dim> Rot_mat_2;
+    Rot_mat_2[0][0] = Rot_mat_2[2][2] = 1./2.;
+    Rot_mat_2[0][2] = -sqrt(3.)/2.;
+    Rot_mat_2[2][0] = sqrt(3.)/2.;
+    Rot_mat_2[1][1] = 1.;
+    // Rot_mat_2[2][2] = 1./2.;
+
 // Transformation strain
     Tensor<2, dim> eps_t1;
-      eps_t1[0][0] = 0.1753;
-     eps_t1[1][1] = 0.1753;
-     eps_t1[2][2] = -0.447;
+    eps_t1[0][0] = (c_omega-a_alpha)/a_alpha;
+    eps_t1[1][1] = (a_omega-c_alpha)/c_alpha;
+    eps_t1[2][2] = (2.*sqrt(3.)*a_omega - 3.*sqrt(3.)*a_alpha)/(3.*sqrt(3)*a_alpha);
 
     Tensor<2, dim> eps_t2;
-     eps_t2[0][0] = 0.1753;
-     eps_t2[1][1] =  -0.447;
-     eps_t2[2][2] = 0.1753;
+    eps_t2  = Rot_mat_2*eps_t1*invert(Rot_mat_2);
+     // eps_t2[0][0] = 0.1753;
+     // eps_t2[1][1] =  -0.447;
+     // eps_t2[2][2] = 0.1753;
 
     Tensor<2, dim> eps_t3;
-     eps_t3[0][0] = -0.447;
-     eps_t3[1][1] = 0.1753;
-     eps_t3[2][2] = 0.1753;
+    eps_t3  = Rot_mat_2*eps_t2*invert(Rot_mat_2);
+     // eps_t3[0][0] = -0.447;
+     // eps_t3[1][1] = 0.1753;
+     // eps_t3[2][2] = 0.1753;
+
+     // std::cout << Rot_mat_2 << '\n';
+     // std::cout << invert(Rot_mat_2) << '\n';
+     //
+     // MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+     // std::cout << eps_t1 << '\n';
+
 
     Ft = Tensor<2, dim>(StandardTensors<dim>::I) + eps_t1*c1+eps_t2*c2+eps_t3*c3; // Transformation deformation gradient
     Fe = F * invert(Ft); // Elastic deformation gradient
@@ -273,6 +304,8 @@ private:
   SymmetricTensor<2, dim> tau;
   SymmetricTensor<4, dim> Jc, Jc_A,Jc_M1,Jc_M2,Jc_M3;
   Tensor<2, dim> Fe;
+  // double a_alpha, c_alpha, a_omega, c_omega;
+
   double driving_force_noStress;
   double X10,X12,X13,X20,X21,X23,X30,X31,X32;
   double dc10,dc12,dc13,dc20,dc21,dc23,dc30,dc31,dc32;

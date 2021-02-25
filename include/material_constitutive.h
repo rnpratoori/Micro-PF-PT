@@ -16,12 +16,15 @@ template <int dim>
 class Material_Constitutive
 {
 public:
- Material_Constitutive(const double lambda_A_iso,
+ Material_Constitutive(const double C_A_11, const double C_A_12, const double C_A_13, const double C_A_33, const double C_A_44,
+                        const double C_M_11, const double C_M_12, const double C_M_13, const double C_M_33, const double C_M_44,
+                        const double lambda_A_iso,
                                                                        const double mu_A_iso,
                                             const double lambda_M_iso,
                                             const double mu_M_iso,
                                             const double A,
                                             const double delta_psi)
+                        // const double a_alpha, const double c_alpha, const double a_omega, const double c_omega)
    :
    det_F(1.0),
    Fe(Tensor<2, dim>()),
@@ -34,10 +37,26 @@ public:
    FeEe(Tensor<2, dim>()),
    EeEe(Tensor<2, dim>()),
 
+   C_A_11(C_A_11),
+   C_A_12(C_A_12),
+   C_A_13(C_A_13),
+   C_A_33(C_A_33),
+   C_A_44(C_A_44),
+   C_M_11(C_M_11),
+   C_M_12(C_M_12),
+   C_M_13(C_M_13),
+   C_M_33(C_M_33),
+   C_M_44(C_M_44),
+
    lambda_A_iso(lambda_A_iso),
    mu_A_iso(mu_A_iso),
    lambda_M_iso(lambda_M_iso),
    mu_M_iso(mu_M_iso),
+
+   // a_alpha(a_alpha),
+   // c_alpha(c_alpha),
+   // a_omega(a_omega),
+   // c_omega(c_omega),
 
    C_A(Vector<double> (9)),
    C_M1(Vector<double> (9)),
@@ -86,52 +105,102 @@ public:
    c3=c_3;
 
    ///sr=1
-   kd1=0.1753 - 0.0208333 *A0 - 0.0208333 *delta_psi0;
-   kr1=0.149153 + 0.125 *A0 - 0.125 *delta_psi0;
-   kd3=-0.447 + 0.125  *A0 + 0.125 *delta_psi0;
-   kr3=-0.808318 - 1.  *A0 + 1.*delta_psi0;
+   // kd1=0.1753 - 0.0208333 *A0 - 0.0208333 *delta_psi0;
+   // kr1=0.149153 + 0.125 *A0 - 0.125 *delta_psi0;
+   // kd3=-0.447 + 0.125  *A0 + 0.125 *delta_psi0;
+   // kr3=-0.808318 - 1.  *A0 + 1.*delta_psi0;
+
+   kd1=0;
+   kr1=0;
+   kd3=0;
+   kr3=0;
+
+   Tensor<2, 2*dim> Rot_mat_4;
+   Rot_mat_4[0][0] = Rot_mat_4[2][2] = 1./4.;
+   Rot_mat_4[0][2] = Rot_mat_4[2][0]  = 3./4.;
+   Rot_mat_4[0][4] = Rot_mat_4[5][3] = sqrt(3.)/2.;
+   Rot_mat_4[1][1] = 1.;
+   Rot_mat_4[2][4] = Rot_mat_4[3][5] = -sqrt(3.)/2.;
+   Rot_mat_4[3][3] = Rot_mat_4[5][5] = 1./2.;
+   Rot_mat_4[0][4] = Rot_mat_4[5][3] = sqrt(3.)/2.;
+   Rot_mat_4[4][0] = -sqrt(3.)/4.;
+   Rot_mat_4[4][2] = sqrt(3.)/4.;
+   Rot_mat_4[4][4] = -1./2.;
+
 
 // Elstic constants for orthotropic material
-  C_A[0]= 167.5;//C_A_11
-   C_A[1]= 167.5;//C_A_22
-   C_A[2]= 167.5;//C_A_33
-   C_A[3]=  80.1;//C_A_44
-   C_A[4]=  80.1;//C_A_55
-   C_A[5]=  80.1;//C_A_66
-   C_A[6]=  65.0;//C_A_12
-   C_A[7]=  65.0;//C_A_13
-   C_A[8]=  65.0;//C_A_23
+   C_A[0] = C_A_11;//C_A_11
+   C_A[1] = C_A_11;//C_A_22
+   C_A[2] = C_A_33;//C_A_33
+   C_A[3] = C_A_44;//C_A_44
+   C_A[4] = C_A_44;//C_A_55
+   C_A[5] = (C_A_11-C_A_12)/2;//C_A_66
+   C_A[6] = C_A_12;//C_A_12
+   C_A[7] = C_A_13;//C_A_13
+   C_A[8] = C_A_13;//C_A_23
 
-  C_M1[0]= 174.76;//C_M1_11
-   C_M1[1]= 174.76;//C_M1_22
-   C_M1[2]= 136.68;//C_M1_33
-   C_M1[3]=  60.24;//C_M1_44
-   C_M1[4]=  60.24;//C_M1_55
-   C_M1[5]=  42.22;//C_M1_66
-   C_M1[6]= 102.00;//C_M1_12
-   C_M1[7]=  68.00;//C_M1_13
-   C_M1[8]=  68.00;//C_M1_23
 
-   C_M2[0]= 174.76;//C_M2_11
-   C_M2[1]= 136.68;//C_M2_22
-   C_M2[2]= 174.76;//C_M2_33
-   C_M2[3]=  60.24;//C_M2_44
-   C_M2[4]=  42.22;//C_M2_55
-   C_M2[5]=  60.24;//C_M2_66
-   C_M2[6]=  68.00;//C_M2_12
-   C_M2[7]= 102.00;//C_M2_13
-   C_M2[8]=  68.00;//C_M2_23
 
-   C_M3[0]= 136.68;//C_M3_11
-   C_M3[1]= 174.76;//C_M3_22
-   C_M3[2]= 174.76;//C_M3_33
-   C_M3[3]=  42.22;//C_M3_44
-   C_M3[4]=  60.24;//C_M3_55
-   C_M3[5]=  60.24;//C_M3_66
-   C_M3[6]=  68.00;//C_M3_12
-   C_M3[7]=  68.00;//C_M3_13
-   C_M3[8]= 102.00;//C_M3_23
+   C_M1[0]  = C_M_11;//C_M1_11
+   C_M1[1]  = C_M_11;//C_M1_22
+   C_M1[2]  = C_M_33;//C_M1_33
+   C_M1[3]  = C_M_44;//C_M1_44
+   C_M1[4]  = C_M_44;//C_M1_55
+   C_M1[5]  = (C_M_11-C_M_12)/2;//C_M1_66
+   C_M1[6]  = C_M_12;//C_M1_12
+   C_M1[7]  = C_M_13;//C_M1_13
+   C_M1[8]  = C_M_13;//C_M1_23
 
+   // C_M2[0]  = C_M_11;//C_M1_11
+   // C_M2[1]  = C_M_11;//C_M1_22
+   // C_M2[2]  = C_M_33;//C_M1_33
+   // C_M2[3]  = C_M_44;//C_M1_44
+   // C_M2[4]  = C_M_44;//C_M1_55
+   // C_M2[5]  = (C_M_11-C_M_12)/2;//C_M1_66
+   // C_M2[6]  = C_M_12;//C_M1_12
+   // C_M2[7]  = C_M_13;//C_M1_13
+   // C_M2[8]  = C_M_13;//C_M1_23
+   //
+   // C_M3[0]  = C_M_11;//C_M1_11
+   // C_M3[1]  = C_M_11;//C_M1_22
+   // C_M3[2]  = C_M_33;//C_M1_33
+   // C_M3[3]  = C_M_44;//C_M1_44
+   // C_M3[4]  = C_M_44;//C_M1_55
+   // C_M3[5]  = (C_M_11-C_M_12)/2;//C_M1_66
+   // C_M3[6]  = C_M_12;//C_M1_12
+   // C_M3[7]  = C_M_13;//C_M1_13
+   // C_M3[8]  = C_M_13;//C_M1_23
+
+   // C_M2 = Rot_mat_4*C_M1*invert(Rot_mat_4);
+   // C_M3 = Rot_mat_4*C_M2*invert(Rot_mat_4);
+
+   C_M2[0]= 137.4;//C_M2_11
+   C_M2[1]= 146.7;//C_M2_22
+   C_M2[2]= 129.1;//C_M2_33
+   C_M2[3]=  35.825;//C_M2_44
+   C_M2[4]=  69.5;//C_M2_55
+   C_M2[5]=  29.275;//C_M2_66
+   C_M2[6]=  70.375;//C_M2_12
+   C_M2[7]= 92.75;//C_M2_13
+   C_M2[8]=  69.125;//C_M2_23
+
+   C_M3[0]= 137.4;//C_M2_11
+   C_M3[1]= 146.7;//C_M2_22
+   C_M3[2]= 129.1;//C_M2_33
+   C_M3[3]=  35.825;//C_M2_44
+   C_M3[4]=  69.5;//C_M2_55
+   C_M3[5]=  29.275;//C_M2_66
+   C_M3[6]=  70.375;//C_M2_12
+   C_M3[7]= 92.75;//C_M2_13
+   C_M3[8]=  69.125;//C_M2_23
+
+   // std::cout << Rot_mat_4 << '\n';
+   // std::cout << invert(Rot_mat_4) << '\n';
+   // std::cout << C_M2 << '\n';
+   // std::cout << C_M3 << '\n';
+   //
+   //
+   // MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
 
    lambda_A[0]= C_A[0]+C_A[8]+2*C_A[3]-(C_A[6]+C_A[7]+2*C_A[4]+2*C_A[5]);
    lambda_A[1]= C_A[1]+C_A[7]+2*C_A[4]-(C_A[6]+C_A[8]+2*C_A[3]+2*C_A[5]);
@@ -371,7 +440,9 @@ protected:
  Tensor<2, dim> FeEe;
  Tensor<2, dim> EeEe;
 
+ double C_A_11, C_A_12, C_A_13, C_A_33, C_A_44, C_M_11, C_M_12, C_M_13, C_M_33, C_M_44;
  double lambda_A_iso,mu_A_iso,lambda_M_iso,mu_M_iso,lambda_iso,mu_iso;
+ // double a_alpha, c_alpha, a_omega, c_omega;
  // double mu_A_iso,mu_M_iso,mu_iso;
 
  Vector<double> C_A,C_M1,C_M2,C_M3;
