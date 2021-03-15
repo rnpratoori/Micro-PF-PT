@@ -14,6 +14,16 @@ namespace PhaseField
   {
       struct Materials
           {
+            double C_A_11;
+            double C_A_12;
+            double C_A_13;
+            double C_A_33;
+            double C_A_44;
+            double C_M_11;
+            double C_M_12;
+            double C_M_13;
+            double C_M_33;
+            double C_M_44;
             double lambdaA; // austenite phase
             double muA;     // austenite phase
             double lambdaM; // martensite phase
@@ -22,6 +32,10 @@ namespace PhaseField
             double A;       // parameter for interaction energy
             double delta_psi;  //thermal energy jump
             double ki0;  //threshold
+            double a_alpha;
+            double c_alpha;
+            double a_omega;
+            double c_omega;
 
             static void
             declare_parameters(ParameterHandler &prm);

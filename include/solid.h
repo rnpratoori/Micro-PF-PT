@@ -1024,7 +1024,8 @@ void Solid<dim>::update_qph_incremental()
                                          solution_c3_values[q_point],
                                          parameters.delta_t,
                                          parameters.L,
-                                                fe_values.quadrature_point(q_point));
+                                                fe_values.quadrature_point(q_point),
+                                              parameters.a_alpha, parameters.c_alpha, parameters.a_omega, parameters.c_omega);
          }
      }
 

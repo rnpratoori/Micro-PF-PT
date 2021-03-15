@@ -16,7 +16,9 @@ template <int dim>
 class Material_Constitutive
 {
 public:
- Material_Constitutive(const double lambda_A_iso,
+ Material_Constitutive(const double C_A_11, const double C_A_12, const double C_A_13, const double C_A_33, const double C_A_44,
+                        const double C_M_11, const double C_M_12, const double C_M_13, const double C_M_33, const double C_M_44,
+                        const double lambda_A_iso,
                                                                        const double mu_A_iso,
                                             const double lambda_M_iso,
                                             const double mu_M_iso,
@@ -33,6 +35,17 @@ public:
    Ee(Tensor<2, dim>()),
    FeEe(Tensor<2, dim>()),
    EeEe(Tensor<2, dim>()),
+
+   C_A_11(C_A_11),
+    C_A_12(C_A_12),
+    C_A_13(C_A_13),
+    C_A_33(C_A_33),
+    C_A_44(C_A_44),
+    C_M_11(C_M_11),
+    C_M_12(C_M_12),
+    C_M_13(C_M_13),
+    C_M_33(C_M_33),
+    C_M_44(C_M_44),
 
    lambda_A_iso(lambda_A_iso),
    mu_A_iso(mu_A_iso),
@@ -92,45 +105,87 @@ public:
    kr3=-0.808318 - 1.  *A0 + 1.*delta_psi0;
 
 // Elstic constants for orthotropic material
-  C_A[0]= 167.5;//C_A_11
-   C_A[1]= 167.5;//C_A_22
-   C_A[2]= 167.5;//C_A_33
-   C_A[3]=  80.1;//C_A_44
-   C_A[4]=  80.1;//C_A_55
-   C_A[5]=  80.1;//C_A_66
-   C_A[6]=  65.0;//C_A_12
-   C_A[7]=  65.0;//C_A_13
-   C_A[8]=  65.0;//C_A_23
+C_A[0] = C_A_11;//C_A_11
+   C_A[1] = C_A_11;//C_A_22
+   C_A[2] = C_A_33;//C_A_33
+   C_A[3] = C_A_44;//C_A_44
+   C_A[4] = C_A_44;//C_A_55
+   C_A[5] = C_A_44;//C_A_66
+   C_A[6] = C_A_12;//C_A_12
+   C_A[7] = C_A_13;//C_A_13
+   C_A[8] = C_A_13;//C_A_23
 
-  C_M1[0]= 174.76;//C_M1_11
-   C_M1[1]= 174.76;//C_M1_22
-   C_M1[2]= 136.68;//C_M1_33
-   C_M1[3]=  60.24;//C_M1_44
-   C_M1[4]=  60.24;//C_M1_55
-   C_M1[5]=  42.22;//C_M1_66
-   C_M1[6]= 102.00;//C_M1_12
-   C_M1[7]=  68.00;//C_M1_13
-   C_M1[8]=  68.00;//C_M1_23
 
-   C_M2[0]= 174.76;//C_M2_11
-   C_M2[1]= 136.68;//C_M2_22
-   C_M2[2]= 174.76;//C_M2_33
-   C_M2[3]=  60.24;//C_M2_44
-   C_M2[4]=  42.22;//C_M2_55
-   C_M2[5]=  60.24;//C_M2_66
-   C_M2[6]=  68.00;//C_M2_12
-   C_M2[7]= 102.00;//C_M2_13
-   C_M2[8]=  68.00;//C_M2_23
 
-   C_M3[0]= 136.68;//C_M3_11
-   C_M3[1]= 174.76;//C_M3_22
-   C_M3[2]= 174.76;//C_M3_33
-   C_M3[3]=  42.22;//C_M3_44
-   C_M3[4]=  60.24;//C_M3_55
-   C_M3[5]=  60.24;//C_M3_66
-   C_M3[6]=  68.00;//C_M3_12
-   C_M3[7]=  68.00;//C_M3_13
-   C_M3[8]= 102.00;//C_M3_23
+   C_M1[0]  = C_M_11;//C_M1_11
+   C_M1[1]  = C_M_11;//C_M1_22
+   C_M1[2]  = C_M_33;//C_M1_33
+   C_M1[3]  = C_M_44;//C_M1_44
+   C_M1[4]  = C_M_44;//C_M1_55
+   C_M1[5]  = 42.2;//C_M1_66
+   C_M1[6]  = C_M_12;//C_M1_12
+   C_M1[7]  = C_M_13;//C_M1_13
+   C_M1[8]  = C_M_13;//C_M1_23
+
+   C_M1[0]  = C_M_11;//C_M1_11
+   C_M1[1]  = C_M_33;//C_M1_22
+   C_M1[2]  = C_M_11;//C_M1_33
+   C_M1[3]  = C_M_44;//C_M1_44
+   C_M1[4]  = 42.2;//C_M1_55
+   C_M1[5]  = C_M_44;//C_M1_66
+   C_M1[6]  = C_M_13;//C_M1_12
+   C_M1[7]  = C_M_12;//C_M1_13
+   C_M1[8]  = C_M_13;//C_M1_23
+
+   C_M1[0]  = C_M_33;//C_M1_11
+   C_M1[1]  = C_M_11;//C_M1_22
+   C_M1[2]  = C_M_11;//C_M1_33
+   C_M1[3]  = 42.2;//C_M1_44
+   C_M1[4]  = C_M_44;//C_M1_55
+   C_M1[5]  = C_M_44;//C_M1_66
+   C_M1[6]  = C_M_13;//C_M1_12
+   C_M1[7]  = C_M_13;//C_M1_13
+   C_M1[8]  = C_M_12;//C_M1_23
+
+  // C_A[0]= 167.5;//C_A_11
+  //  C_A[1]= 167.5;//C_A_22
+  //  C_A[2]= 167.5;//C_A_33
+  //  C_A[3]=  80.1;//C_A_44
+  //  C_A[4]=  80.1;//C_A_55
+  //  C_A[5]=  80.1;//C_A_66
+  //  C_A[6]=  65.0;//C_A_12
+  //  C_A[7]=  65.0;//C_A_13
+  //  C_A[8]=  65.0;//C_A_23
+  //
+  // C_M1[0]= 174.76;//C_M1_11
+  //  C_M1[1]= 174.76;//C_M1_22
+  //  C_M1[2]= 136.68;//C_M1_33
+  //  C_M1[3]=  60.24;//C_M1_44
+  //  C_M1[4]=  60.24;//C_M1_55
+  //  C_M1[5]=  42.22;//C_M1_66
+  //  C_M1[6]= 102.00;//C_M1_12
+  //  C_M1[7]=  68.00;//C_M1_13
+  //  C_M1[8]=  68.00;//C_M1_23
+  //
+  //  C_M2[0]= 174.76;//C_M2_11
+  //  C_M2[1]= 136.68;//C_M2_22
+  //  C_M2[2]= 174.76;//C_M2_33
+  //  C_M2[3]=  60.24;//C_M2_44
+  //  C_M2[4]=  42.22;//C_M2_55
+  //  C_M2[5]=  60.24;//C_M2_66
+  //  C_M2[6]=  68.00;//C_M2_12
+  //  C_M2[7]= 102.00;//C_M2_13
+  //  C_M2[8]=  68.00;//C_M2_23
+  //
+  //  C_M3[0]= 136.68;//C_M3_11
+  //  C_M3[1]= 174.76;//C_M3_22
+  //  C_M3[2]= 174.76;//C_M3_33
+  //  C_M3[3]=  42.22;//C_M3_44
+  //  C_M3[4]=  60.24;//C_M3_55
+  //  C_M3[5]=  60.24;//C_M3_66
+  //  C_M3[6]=  68.00;//C_M3_12
+  //  C_M3[7]=  68.00;//C_M3_13
+  //  C_M3[8]= 102.00;//C_M3_23
 
 
    lambda_A[0]= C_A[0]+C_A[8]+2*C_A[3]-(C_A[6]+C_A[7]+2*C_A[4]+2*C_A[5]);
@@ -371,6 +426,7 @@ protected:
  Tensor<2, dim> FeEe;
  Tensor<2, dim> EeEe;
 
+ double C_A_11, C_A_12, C_A_13, C_A_33, C_A_44, C_M_11, C_M_12, C_M_13, C_M_33, C_M_44;
  double lambda_A_iso,mu_A_iso,lambda_M_iso,mu_M_iso,lambda_iso,mu_iso;
  // double mu_A_iso,mu_M_iso,mu_iso;
 

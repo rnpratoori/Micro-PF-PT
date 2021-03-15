@@ -39,33 +39,37 @@ public:
 
   void setup_lqp (const Parameters::AllParameters &parameters)
   {
-    material = new Material_Constitutive<dim>(parameters.lambdaA,
+    material = new Material_Constitutive<dim>(parameters.C_A_11, parameters.C_A_12, parameters.C_A_13, parameters.C_A_33, parameters.C_A_44,
+              parameters.C_M_11, parameters.C_M_12, parameters.C_M_13, parameters.C_M_33, parameters.C_M_44,
+              parameters.lambdaA,
             parameters.muA,parameters.lambdaM,parameters.muM,parameters.A, parameters.delta_psi);
+            // parameters.a_alpha, parameters.c_alpha, parameters.a_omega, parameters.c_omega);
 
-    update_values(Tensor<2, dim>(), double (),double (),double (), double(), double(), Point<dim>() );
+    update_values(Tensor<2, dim>(), double (),double (),double (), double(), double(), Point<dim>(), double (),double (),double (), double());
   }
 
   void update_values (const Tensor<2, dim> &Grad_u_n, const double c1, const double c2, const double c3,
-                      const double dt, const double landa, const Point<dim>  q_point )
+                      const double dt, const double landa, const Point<dim>  q_point,
+                      const double a_alpha, const double c_alpha, const double a_omega, const double c_omega)
   {
 
 // Total deformation gradient
     F = (Tensor<2, dim>(StandardTensors<dim>::I) +  Grad_u_n);
 // Transformation strain
     Tensor<2, dim> eps_t1;
-      eps_t1[0][0] = 0.1753;
-     eps_t1[1][1] = 0.1753;
-     eps_t1[2][2] = -0.447;
+      eps_t1[0][0] = a_alpha;
+     eps_t1[1][1] = a_alpha;
+     eps_t1[2][2] = c_alpha;
 
     Tensor<2, dim> eps_t2;
-     eps_t2[0][0] = 0.1753;
-     eps_t2[1][1] =  -0.447;
-     eps_t2[2][2] = 0.1753;
+     eps_t2[0][0] = a_alpha;
+     eps_t2[1][1] =  c_alpha;
+     eps_t2[2][2] = a_alpha;
 
     Tensor<2, dim> eps_t3;
-     eps_t3[0][0] = -0.447;
-     eps_t3[1][1] = 0.1753;
-     eps_t3[2][2] = 0.1753;
+     eps_t3[0][0] = c_alpha;
+     eps_t3[1][1] = a_alpha;
+     eps_t3[2][2] = a_alpha;
 
     Ft = Tensor<2, dim>(StandardTensors<dim>::I) + eps_t1*c1+eps_t2*c2+eps_t3*c3; // Transformation deformation gradient
     Fe = F * invert(Ft); // Elastic deformation gradient
