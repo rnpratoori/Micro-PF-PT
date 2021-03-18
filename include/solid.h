@@ -1321,7 +1321,7 @@ void Solid<dim>::output_resultant_stress()
            myfile_2.open ("resultant_first_piola_stress.txt");
            myfile_3.open ("resultant_second_piola_stress.txt");
            myfile_4.open ("resultant_lagrangian_strain.txt");
-           myfile_5.open ("order_parametre.txt");
+           myfile_5.open ("order_parameter.txt");
            for(unsigned int n=0; n<time.get_timestep(); n++)
            {
              myfile_1<< resultant_cauchy_stress[n]<<std::endl;
