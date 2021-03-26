@@ -61,7 +61,11 @@ subsection Material properties
   set c alpha = 5.147
   set a omega = 5.039
   set c omega = 3.136
+
+
+
 end
+
 
 subsection Time
   # End time
@@ -70,3 +74,4 @@ subsection Time
   # Time step size
   set Time step size = 500
 end
+
