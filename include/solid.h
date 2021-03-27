@@ -319,13 +319,13 @@ void Solid<dim>::system_setup()
 
   solution_c0.reinit(locally_owned_dofs_c, locally_relevant_dofs_c, mpi_communicator);
   solution_c1.reinit(locally_owned_dofs_c, locally_relevant_dofs_c, mpi_communicator);
-  // solution_c2.reinit(locally_owned_dofs_c, locally_relevant_dofs_c, mpi_communicator);
-  // solution_c3.reinit(locally_owned_dofs_c, locally_relevant_dofs_c, mpi_communicator);
+  solution_c2.reinit(locally_owned_dofs_c, locally_relevant_dofs_c, mpi_communicator);
+  solution_c3.reinit(locally_owned_dofs_c, locally_relevant_dofs_c, mpi_communicator);
 
 
   system_rhs_c1.reinit(locally_owned_dofs_c, mpi_communicator);
-  // system_rhs_c2.reinit(locally_owned_dofs_c, mpi_communicator);
-  // system_rhs_c3.reinit(locally_owned_dofs_c, mpi_communicator);
+  system_rhs_c2.reinit(locally_owned_dofs_c, mpi_communicator);
+  system_rhs_c3.reinit(locally_owned_dofs_c, mpi_communicator);
 
   resultant_cauchy_stress.reinit(100000);
   static_cauchy_stress.reinit   (100000);
@@ -839,8 +839,8 @@ void Solid<dim>::assemble_system_c()
 {
   mass_matrix = 0;
   system_rhs_c1 = 0;
-  // system_rhs_c2 = 0;
-  // system_rhs_c3 = 0;
+  system_rhs_c2 = 0;
+  system_rhs_c3 = 0;
 
   FEValues<dim> fe_values_c (fe_c, qf_cell_c,
                            update_values  | update_gradients |
@@ -848,8 +848,8 @@ void Solid<dim>::assemble_system_c()
 
   FullMatrix<double>   cell_mass_matrix    (dofs_per_cell_c, dofs_per_cell_c);
   Vector<double>   cell_rhs_c1         (dofs_per_cell_c);
-  // Vector<double>   cell_rhs_c2         (dofs_per_cell_c);
-  // Vector<double>   cell_rhs_c3         (dofs_per_cell_c);
+  Vector<double>   cell_rhs_c2         (dofs_per_cell_c);
+  Vector<double>   cell_rhs_c3         (dofs_per_cell_c);
 
   std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell_c);
 
@@ -865,8 +865,8 @@ void Solid<dim>::assemble_system_c()
 
       cell_mass_matrix = 0;
       cell_rhs_c1=0;
-      // cell_rhs_c2=0;
-      // cell_rhs_c3=0;
+      cell_rhs_c2=0;
+      cell_rhs_c3=0;
 
       PointHistory<dim> *lqph =
                     reinterpret_cast<PointHistory<dim>*>(cell->user_pointer());
@@ -874,8 +874,8 @@ void Solid<dim>::assemble_system_c()
       for (unsigned int q=0; q<n_q_points_c; ++q)
         {
           const double dc1 = lqph[q].get_update_c1();
-          // const double dc2 = lqph[q].get_update_c2();
-          // const double dc3 = lqph[q].get_update_c3();
+          const double dc2 = lqph[q].get_update_c2();
+          const double dc3 = lqph[q].get_update_c3();
 
           for (unsigned int k=0; k<dofs_per_cell_c; ++k)
             {
@@ -891,8 +891,8 @@ void Solid<dim>::assemble_system_c()
               }
 
               cell_rhs_c1(i) +=  dc1 * phi[i] * fe_values_c.JxW (q);
-              // cell_rhs_c2(i) +=  dc2 * phi[i] * fe_values_c.JxW (q);
-              // cell_rhs_c3(i) +=  dc3 * phi[i] * fe_values_c.JxW (q);
+              cell_rhs_c2(i) +=  dc2 * phi[i] * fe_values_c.JxW (q);
+              cell_rhs_c3(i) +=  dc3 * phi[i] * fe_values_c.JxW (q);
 
           }
         }
@@ -905,19 +905,19 @@ void Solid<dim>::assemble_system_c()
       constraints_c.distribute_local_to_global (cell_rhs_c1,
                                                 local_dof_indices,
                                                 system_rhs_c1);
-      // constraints_c.distribute_local_to_global (cell_rhs_c2,
-      //                                           local_dof_indices,
-      //                                           system_rhs_c2);
-      // constraints_c.distribute_local_to_global (cell_rhs_c3,
-      //                                           local_dof_indices,
-      //                                           system_rhs_c3);
+      constraints_c.distribute_local_to_global (cell_rhs_c2,
+                                                local_dof_indices,
+                                                system_rhs_c2);
+      constraints_c.distribute_local_to_global (cell_rhs_c3,
+                                                local_dof_indices,
+                                                system_rhs_c3);
 
    }
 
   mass_matrix.compress (VectorOperation::add);
   system_rhs_c1.compress (VectorOperation::add);
-  // system_rhs_c2.compress (VectorOperation::add);
-  // system_rhs_c3.compress (VectorOperation::add);
+  system_rhs_c2.compress (VectorOperation::add);
+  system_rhs_c3.compress (VectorOperation::add);
 
 
 
@@ -1012,8 +1012,8 @@ void Solid<dim>::update_qph_incremental()
 
           fe_values[u_fe].get_function_gradients(solution,  solution_grads_values);
           fe_values_c.get_function_values(solution_c1,   solution_c1_values);
-          // fe_values_c.get_function_values(solution_c2,   solution_c2_values);
-          // fe_values_c.get_function_values(solution_c3,   solution_c3_values);
+          fe_values_c.get_function_values(solution_c2,   solution_c2_values);
+          fe_values_c.get_function_values(solution_c3,   solution_c3_values);
 
          for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
          {
@@ -1025,7 +1025,7 @@ void Solid<dim>::update_qph_incremental()
                                          parameters.delta_t,
                                          parameters.L,
                                                 fe_values.quadrature_point(q_point),
-                                              parameters.a_alpha, parameters.c_alpha, parameters.a_omega, parameters.c_omega);
+                                          parameters.a_alpha, parameters.c_alpha, parameters.a_omega, parameters.c_omega);
          }
      }
 
@@ -1061,8 +1061,8 @@ void Solid<dim>::output_results() const
    data_out.add_data_vector (dof_handler, solution, displacement_names);
    data_out.add_data_vector (dof_handler_c, solution_c0, "c0");
    data_out.add_data_vector (dof_handler_c, solution_c1, "c1");
-   // data_out.add_data_vector (dof_handler_c, solution_c2, "c2");
-   // data_out.add_data_vector (dof_handler_c, solution_c3, "c3");
+   data_out.add_data_vector (dof_handler_c, solution_c2, "c2");
+   data_out.add_data_vector (dof_handler_c, solution_c3, "c3");
 
 /////////////////////////
 // Output norm of stress field
@@ -1105,24 +1105,24 @@ std::vector< std::vector< Vector<double> > >
    }
 
  Vector<double> history_field_drivingforce_c1,
-                /*history_field_drivingforce_c2,
-                history_field_drivingforce_c3,*/
+                history_field_drivingforce_c2,
+                history_field_drivingforce_c3,
                 local_history_values_at_qpoints_drivingforce_c1,
-                /*local_history_values_at_qpoints_drivingforce_c2,
-                local_history_values_at_qpoints_drivingforce_c3,*/
-                local_history_fe_values_drivingforce_c1
-                /*local_history_fe_values_drivingforce_c2,
-                local_history_fe_values_drivingforce_c3*/;
+                local_history_values_at_qpoints_drivingforce_c2,
+                local_history_values_at_qpoints_drivingforce_c3,
+                local_history_fe_values_drivingforce_c1,
+                local_history_fe_values_drivingforce_c2,
+                local_history_fe_values_drivingforce_c3;
 
  history_field_drivingforce_c1.reinit(history_dof_handler.n_dofs());
- // history_field_drivingforce_c2.reinit(history_dof_handler.n_dofs());
- // history_field_drivingforce_c3.reinit(history_dof_handler.n_dofs());
+ history_field_drivingforce_c2.reinit(history_dof_handler.n_dofs());
+ history_field_drivingforce_c3.reinit(history_dof_handler.n_dofs());
  local_history_values_at_qpoints_drivingforce_c1.reinit(qf_cell.size());
- // local_history_values_at_qpoints_drivingforce_c2.reinit(qf_cell.size());
- // local_history_values_at_qpoints_drivingforce_c3.reinit(qf_cell.size());
+ local_history_values_at_qpoints_drivingforce_c2.reinit(qf_cell.size());
+ local_history_values_at_qpoints_drivingforce_c3.reinit(qf_cell.size());
  local_history_fe_values_drivingforce_c1.reinit(history_fe.dofs_per_cell);
- // local_history_fe_values_drivingforce_c2.reinit(history_fe.dofs_per_cell);
- // local_history_fe_values_drivingforce_c3.reinit(history_fe.dofs_per_cell);
+ local_history_fe_values_drivingforce_c2.reinit(history_fe.dofs_per_cell);
+ local_history_fe_values_drivingforce_c3.reinit(history_fe.dofs_per_cell);
 
 
  FullMatrix<double> qpoint_to_dof_matrix (history_fe.dofs_per_cell,
@@ -1165,17 +1165,17 @@ std::vector< std::vector< Vector<double> > >
             dg_cell->set_dof_values (local_history_fe_values_drivingforce_c1,
                                      history_field_drivingforce_c1);
 
-            // local_history_values_at_qpoints_drivingforce_c2(q) = lqph[q].get_update_c2();
-            // qpoint_to_dof_matrix.vmult (local_history_fe_values_drivingforce_c2,
-            //                             local_history_values_at_qpoints_drivingforce_c2);
-            // dg_cell->set_dof_values (local_history_fe_values_drivingforce_c2,
-            //                          history_field_drivingforce_c2);
-            //
-            // local_history_values_at_qpoints_drivingforce_c3(q) = lqph[q].get_update_c3();
-            // qpoint_to_dof_matrix.vmult (local_history_fe_values_drivingforce_c3,
-            //                             local_history_values_at_qpoints_drivingforce_c3);
-            // dg_cell->set_dof_values (local_history_fe_values_drivingforce_c3,
-            //                          history_field_drivingforce_c3);
+            local_history_values_at_qpoints_drivingforce_c2(q) = lqph[q].get_update_c2();
+            qpoint_to_dof_matrix.vmult (local_history_fe_values_drivingforce_c2,
+                                        local_history_values_at_qpoints_drivingforce_c2);
+            dg_cell->set_dof_values (local_history_fe_values_drivingforce_c2,
+                                     history_field_drivingforce_c2);
+
+            local_history_values_at_qpoints_drivingforce_c3(q) = lqph[q].get_update_c3();
+            qpoint_to_dof_matrix.vmult (local_history_fe_values_drivingforce_c3,
+                                        local_history_values_at_qpoints_drivingforce_c3);
+            dg_cell->set_dof_values (local_history_fe_values_drivingforce_c3,
+                                     history_field_drivingforce_c3);
        }
       }
    }
@@ -1200,10 +1200,10 @@ std::vector< std::vector< Vector<double> > >
 
  data_out.add_data_vector(history_dof_handler, history_field_drivingforce_c1, "dc1",
                                  data_component_interpretation2);
- // data_out.add_data_vector(history_dof_handler, history_field_drivingforce_c2, "dc2",
- //                                    data_component_interpretation2);
- // data_out.add_data_vector(history_dof_handler, history_field_drivingforce_c3, "dc3",
- //                                    data_component_interpretation2);
+ data_out.add_data_vector(history_dof_handler, history_field_drivingforce_c2, "dc2",
+                                    data_component_interpretation2);
+ data_out.add_data_vector(history_dof_handler, history_field_drivingforce_c3, "dc3",
+                                    data_component_interpretation2);
 //////////////////////////
 // writing output files
   MappingQEulerian<dim, vectorType > q_mapping(degree, dof_handler, solution);
@@ -1379,44 +1379,44 @@ Solid<dim>::solve_c ( )
 {
  assemble_system_c ();
   vectorType   solution_update_c1 (locally_owned_dofs_c, mpi_communicator);
-  // vectorType   solution_update_c2 (locally_owned_dofs_c, mpi_communicator);
-  // vectorType   solution_update_c3 (locally_owned_dofs_c, mpi_communicator);
+  vectorType   solution_update_c2 (locally_owned_dofs_c, mpi_communicator);
+  vectorType   solution_update_c3 (locally_owned_dofs_c, mpi_communicator);
 
   vectorType   temp_solution_c1 (locally_owned_dofs_c, mpi_communicator);
-  // vectorType   temp_solution_c2 (locally_owned_dofs_c, mpi_communicator);
-  // vectorType   temp_solution_c3 (locally_owned_dofs_c, mpi_communicator);
+  vectorType   temp_solution_c2 (locally_owned_dofs_c, mpi_communicator);
+  vectorType   temp_solution_c3 (locally_owned_dofs_c, mpi_communicator);
 
   temp_solution_c1= solution_c1;
-  // temp_solution_c2= solution_c2;
-  // temp_solution_c3= solution_c3;
+  temp_solution_c2= solution_c2;
+  temp_solution_c3= solution_c3;
 
 
   const double success_tol_c1 = (system_rhs_c1.l2_norm()==0)? 1.e-6 : 1e-6*system_rhs_c1.l2_norm();
-  // const double success_tol_c2 = (system_rhs_c2.l2_norm()==0)? 1.e-6 : 1e-6*system_rhs_c2.l2_norm();
-  // const double success_tol_c3 = (system_rhs_c3.l2_norm()==0)? 1.e-6 : 1e-6*system_rhs_c3.l2_norm();
+  const double success_tol_c2 = (system_rhs_c2.l2_norm()==0)? 1.e-6 : 1e-6*system_rhs_c2.l2_norm();
+  const double success_tol_c3 = (system_rhs_c3.l2_norm()==0)? 1.e-6 : 1e-6*system_rhs_c3.l2_norm();
 
   SolverControl solver_control_c1 (dof_handler_c.n_dofs(), success_tol_c1);
-  // SolverControl solver_control_c2 (dof_handler_c.n_dofs(), success_tol_c2);
-  // SolverControl solver_control_c3 (dof_handler_c.n_dofs(), success_tol_c3);
+  SolverControl solver_control_c2 (dof_handler_c.n_dofs(), success_tol_c2);
+  SolverControl solver_control_c3 (dof_handler_c.n_dofs(), success_tol_c3);
 
   TrilinosWrappers::SolverCG solver_c1 (solver_control_c1);
-  // TrilinosWrappers::SolverCG solver_c2 (solver_control_c2);
-  // TrilinosWrappers::SolverCG solver_c3 (solver_control_c3);
+  TrilinosWrappers::SolverCG solver_c2 (solver_control_c2);
+  TrilinosWrappers::SolverCG solver_c3 (solver_control_c3);
 
   TrilinosWrappers::PreconditionAMG preconditioner;
   preconditioner.initialize(mass_matrix);
 
   solver_c1.solve (mass_matrix, solution_update_c1, system_rhs_c1, preconditioner);
-  // solver_c2.solve (mass_matrix, solution_update_c2, system_rhs_c2, preconditioner);
-  // solver_c3.solve (mass_matrix, solution_update_c3, system_rhs_c3, preconditioner);
+  solver_c2.solve (mass_matrix, solution_update_c2, system_rhs_c2, preconditioner);
+  solver_c3.solve (mass_matrix, solution_update_c3, system_rhs_c3, preconditioner);
 
   constraints_c.distribute (solution_update_c1);
-  // constraints_c.distribute (solution_update_c2);
-  // constraints_c.distribute (solution_update_c3);
+  constraints_c.distribute (solution_update_c2);
+  constraints_c.distribute (solution_update_c3);
 
   temp_solution_c1 += solution_update_c1;
-  // temp_solution_c2 += solution_update_c2;
-  // temp_solution_c3 += solution_update_c3;
+  temp_solution_c2 += solution_update_c2;
+  temp_solution_c3 += solution_update_c3;
 
   IndexSet::ElementIterator it=locally_owned_dofs_c.begin()  ;
   unsigned int n_dofs_per_core = locally_owned_dofs_c.n_elements();
@@ -1428,15 +1428,15 @@ Solid<dim>::solve_c ( )
        if (temp_solution_c1(*it)>  1)
            temp_solution_c1(*it) = 1;
 
-       // if (temp_solution_c2(*it)<  0)
-       //     temp_solution_c2(*it) = 0;
-       // if (temp_solution_c2(*it)>  1)
-       //     temp_solution_c2(*it) = 1;
+       if (temp_solution_c2(*it)<  0)
+           temp_solution_c2(*it) = 0;
+       if (temp_solution_c2(*it)>  1)
+           temp_solution_c2(*it) = 1;
 
-       // if (temp_solution_c3(*it)<  0)
-       //     temp_solution_c3(*it) = 0;
-       // if (temp_solution_c3(*it)>  1)
-       //     temp_solution_c3(*it) = 1;
+       if (temp_solution_c3(*it)<  0)
+           temp_solution_c3(*it) = 0;
+       if (temp_solution_c3(*it)>  1)
+           temp_solution_c3(*it) = 1;
 
 
        it++;
@@ -1445,14 +1445,14 @@ Solid<dim>::solve_c ( )
      }
 
   solution_c1= temp_solution_c1;
-  // solution_c2= temp_solution_c2;
-  // solution_c3= temp_solution_c3;
+  solution_c2= temp_solution_c2;
+  solution_c3= temp_solution_c3;
 
   update_qph_incremental();
 
   vectorType   temp_solution_c0 (locally_owned_dofs_c, mpi_communicator);
   temp_solution_c0=1;
-  temp_solution_c0 -= (temp_solution_c1/*+temp_solution_c2+temp_solution_c3*/);
+  temp_solution_c0 -= (temp_solution_c1+temp_solution_c2+temp_solution_c3);
   temp_solution_c0.compress(VectorOperation::add);
   solution_c0= temp_solution_c0;
 
@@ -1506,7 +1506,7 @@ void Solid<dim>::solve_nonlinear_timestep()
 
 
 
-         if (newton_iteration > 0 && ((system_rhs.l2_norm() <= 1e-4 * initial_rhs_norm)||system_rhs.l2_norm() <= 1e-10))
+         if (newton_iteration > 0 && ((system_rhs.l2_norm() <= 1e-4 * initial_rhs_norm)||(system_rhs.l2_norm() <= 1e-10)))
           {
            pcout << "CONVERGED! " << std::endl;
            break;
@@ -1527,14 +1527,14 @@ system_setup(); // sets up the system matrices and RHS
 
 // Applying initial condition for volume fraction c
 vectorType  tmp_solution_c1(locally_owned_dofs_c, mpi_communicator);
-// vectorType  tmp_solution_c2(locally_owned_dofs_c, mpi_communicator);
-// vectorType  tmp_solution_c3(locally_owned_dofs_c, mpi_communicator);
+vectorType  tmp_solution_c2(locally_owned_dofs_c, mpi_communicator);
+vectorType  tmp_solution_c3(locally_owned_dofs_c, mpi_communicator);
 VectorTools::interpolate(dof_handler_c, InitialValues<dim>(1,0), tmp_solution_c1); //initial c
-// VectorTools::interpolate(dof_handler_c, InitialValues<dim>(2,0), tmp_solution_c2); //initial c
-// VectorTools::interpolate(dof_handler_c, InitialValues<dim>(3,0), tmp_solution_c3); //initial c
+VectorTools::interpolate(dof_handler_c, InitialValues<dim>(2,0), tmp_solution_c2); //initial c
+VectorTools::interpolate(dof_handler_c, InitialValues<dim>(3,0), tmp_solution_c3); //initial c
 solution_c1= tmp_solution_c1;
-// solution_c2= tmp_solution_c2;
-// solution_c3= tmp_solution_c3;
+solution_c2= tmp_solution_c2;
+solution_c3= tmp_solution_c3;
 
 update_qph_incremental();
 
@@ -1561,7 +1561,7 @@ while (time.current() <= time.end() )
 
  solve_nonlinear_timestep();
 
- if(time.get_timestep()%50 == 0)
+ if(time.get_timestep()%10 == 0)
   {
    output_results();
   }

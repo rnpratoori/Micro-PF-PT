@@ -77,7 +77,7 @@ public:
     Tensor<2, dim> eps_t1;
     eps_t1[0][0] = (c_omega-a_alpha)/a_alpha;
     eps_t1[1][1] = (a_omega-c_alpha)/c_alpha;
-    eps_t1[2][2] = (2.*sqrt(3.)*a_omega - 3.*sqrt(3.)*a_alpha)/(3.*sqrt(3)*a_alpha);
+    eps_t1[2][2] = (2.*sqrt(3.)*a_omega - 3.*sqrt(3.)*a_alpha)/(3.*sqrt(3.)*a_alpha);
 
     Tensor<2, dim> eps_t2;
     eps_t2  = Rot_mat_2*eps_t1*invert(Rot_mat_2);

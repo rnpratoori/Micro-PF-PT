@@ -115,17 +115,40 @@ public:
    kd3=0;
    kr3=0;
 
-   Tensor<2, 2*dim> Rot_mat_4;
-   Rot_mat_4[0][0] = Rot_mat_4[2][2] = 1./4.;
-   Rot_mat_4[0][2] = Rot_mat_4[2][0]  = 3./4.;
-   Rot_mat_4[0][4] = Rot_mat_4[5][3] = sqrt(3.)/2.;
-   Rot_mat_4[1][1] = 1.;
-   Rot_mat_4[2][4] = Rot_mat_4[3][5] = -sqrt(3.)/2.;
-   Rot_mat_4[3][3] = Rot_mat_4[5][5] = 1./2.;
-   Rot_mat_4[0][4] = Rot_mat_4[5][3] = sqrt(3.)/2.;
-   Rot_mat_4[4][0] = -sqrt(3.)/4.;
-   Rot_mat_4[4][2] = sqrt(3.)/4.;
-   Rot_mat_4[4][4] = -1./2.;
+   // Tensor<2, 2*dim> C_Aus;
+   // C_Aus[0][0]  = C_Aus[1][1] = C_A_11;
+   // C_Aus[2][2]  = C_A_33;
+   // C_Aus[3][3]  = C_Aus[4][4] = C_A_44;
+   // C_Aus[5][5]  = (C_A_11-C_A_12)/2;
+   // C_Aus[0][1]  = C_Aus[1][0] = C_A_12;
+   // C_Aus[1][2]  = C_Aus[2][1] = C_Aus[0][2] = C_Aus[2][0] = C_A_13;
+   //
+   // Tensor<2, 2*dim> C_Mar;
+   // C_Mar[0][0]  = C_Mar[1][1] = C_M_11;
+   // C_Mar[2][2]  = C_M_33;
+   // C_Mar[3][3]  = C_Mar[4][4] = C_M_44;
+   // C_Mar[5][5]  = (C_M_11-C_M_12)/2;
+   // C_Mar[0][1]  = C_Mar[1][0] = C_M_12;
+   // C_Mar[1][2]  = C_Mar[2][1] = C_Mar[0][2] = C_Mar[2][0] = C_M_13;
+
+   // std::cout << C_Aus << '\n';
+   // MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+
+   // std::cout << invert(Rot_mat_4) << '\n';
+   // std::cout << C_M2 << '\n';
+   // std::cout << C_M3 << '\n';
+
+   // Tensor<2, 2*dim> Rot_mat_4;
+   // Rot_mat_4[0][0] = Rot_mat_4[2][2] = 1./4.;
+   // Rot_mat_4[0][2] = Rot_mat_4[2][0]  = 3./4.;
+   // Rot_mat_4[0][4] = Rot_mat_4[5][3] = sqrt(3.)/2.;
+   // Rot_mat_4[1][1] = 1.;
+   // Rot_mat_4[2][4] = Rot_mat_4[3][5] = -sqrt(3.)/2.;
+   // Rot_mat_4[3][3] = Rot_mat_4[5][5] = 1./2.;
+   // Rot_mat_4[0][4] = Rot_mat_4[5][3] = sqrt(3.)/2.;
+   // Rot_mat_4[4][0] = -sqrt(3.)/4.;
+   // Rot_mat_4[4][2] = sqrt(3.)/4.;
+   // Rot_mat_4[4][4] = -1./2.;
 
 
 // Elstic constants for orthotropic material
@@ -292,10 +315,10 @@ public:
                   for (unsigned int l=0; l<dim; ++l)
                   {
                     elasticityTensor[i][j][k][l] +=
-                       lambda[n]*Fe[i][n]*Fe[j][n]*Fe[k][n]*Fe[l][n]+
-                           mu[n]*(Fe[i][n]*Fe[j][n]*ge[k][l]+ ge[i][j]*Fe[k][n]*Fe[l][n])+
-                           nu[n]*(Fe[i][n]*ge[j][k]*Fe[l][n]+ Fe[j][n]*ge[i][k]*Fe[l][n]+
-                                  Fe[i][n]*ge[j][l]*Fe[k][n]+ Fe[j][n]*ge[i][l]*Fe[k][n]);
+                             lambda[n]*Fe[i][n]*Fe[j][n]*Fe[k][n]*Fe[l][n]+
+                                 mu[n]*(Fe[i][n]*Fe[j][n]*ge[k][l]+ ge[i][j]*Fe[k][n]*Fe[l][n])+
+                                 nu[n]*(Fe[i][n]*ge[j][k]*Fe[l][n]+ Fe[j][n]*ge[i][k]*Fe[l][n]+
+                                        Fe[i][n]*ge[j][l]*Fe[k][n]+ Fe[j][n]*ge[i][l]*Fe[k][n]);
                   }
       return elasticityTensor;
     }

@@ -74,4 +74,3 @@ subsection Time
   # Time step size
   set Time step size = 500
 end
-
