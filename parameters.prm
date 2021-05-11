@@ -45,22 +45,22 @@ subsection Material properties
   set mu martensite = 74.0
 
   # kinetic coeff
-  set kinetic coeff = 1e-5
+  set kinetic coeff = 0.02
 
   # interaction parameter
-  set interaction parameter = 2
+  set interaction parameter = 0.01
 
   # thermal jump
-  set thermal jump = 3
+  set thermal jump = 0.058
 
   # threshold
   set threshold = 0
 
   # lattice geometry
-  set a alpha = 3.232
-  set c alpha = 5.147
-  set a omega = 5.039
-  set c omega = 3.136
+  set a alpha = 3.2317
+  set c alpha = 5.1450
+  set a omega = 5.0320
+  set c omega = 3.1289
 
 
 

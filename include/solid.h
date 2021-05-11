@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <fstream>
+// #include <string>
 
 #include "dealiiheaders.h"
 #include "fesystem_str.h"
@@ -44,6 +45,9 @@ private:
   void    update_qph_incremental();
   void    output_results() const;
   void    output_resultant_stress();
+  void    output_quad();
+  void    writeQuadratureOutput(unsigned int _currentIncrement);
+
 
 
   // Parameters::AllParameters        parameters;
@@ -124,6 +128,8 @@ private:
   double                           load_step;
   double                           load;
 
+  std::vector<std::vector<double>> outputQuadrature;
+
 };
 
 template <int dim>
@@ -183,7 +189,7 @@ template <int dim>
 void Solid<dim>::make_grid()
 {
 
-  std::vector< unsigned int > repetitions(dim, 30);
+  std::vector< unsigned int > repetitions(dim, 15);
   if (dim == 3)
   repetitions[dim-2] = 10;
   repetitions[dim-3] = 5;
@@ -191,7 +197,7 @@ void Solid<dim>::make_grid()
   GridGenerator::subdivided_hyper_rectangle(triangulation,
                                             repetitions,
                                             Point<dim>(0.0, 0.0, 0.0),
-                                            Point<dim>(0.5, 1.0, 3.0),
+                                            Point<dim>(0.5, 1.0, 1.5),
                                                true);
 }
 
@@ -247,6 +253,10 @@ void Solid<dim>::system_setup()
   DynamicSparsityPattern dsp(locally_relevant_dofs);
   DoFTools::make_sparsity_pattern (dof_handler, dsp, constraints, false);
   Utilities::MPI::all_gather(mpi_communicator, dof_handler.locally_owned_dofs()),
+  // std::cout <<dof_handler.n_locally_owned_dofs() << '\n';
+  // std::cout <<dof_handler.n_dofs() << '\n';
+  //
+  // MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
 
   // SparsityTools::distribute_sparsity_pattern (dsp,
   //                                             dof_handler.n_locally_owned_dofs_per_processor(),
@@ -408,6 +418,7 @@ void Solid<dim>::make_constraints(const int &it_nr)
 //              }
 
 // Fixing external surfaces
+
                   {
                        const int boundary_id = 0;
 
@@ -505,6 +516,8 @@ void Solid<dim>::make_constraints(const int &it_nr)
 
                       const int boundary_id = 5;
 
+                      if (timestep%2==0)
+                      {
                         if (apply_dirichlet_bc == true)
                           VectorTools::interpolate_boundary_values(dof_handler,
                                                                    boundary_id,
@@ -517,7 +530,15 @@ void Solid<dim>::make_constraints(const int &it_nr)
                                                                    ZeroFunction<dim>(dim),
                                                                    constraints,
                                                                    fe.component_mask(z_displacement));
+                      }
+                      else
+                        VectorTools::interpolate_boundary_values(dof_handler,
+                                                                 boundary_id,
+                                                                 ZeroFunction<dim>(dim),
+                                                                 constraints,
+                                                                 fe.component_mask(z_displacement));
                    }
+
                  {
 
                      const int boundary_id = 5;
@@ -1025,7 +1046,7 @@ void Solid<dim>::update_qph_incremental()
                                          parameters.delta_t,
                                          parameters.L,
                                                 fe_values.quadrature_point(q_point),
-                                          parameters.a_alpha, parameters.c_alpha, parameters.a_omega, parameters.c_omega);
+                                              parameters.a_alpha, parameters.c_alpha, parameters.a_omega, parameters.c_omega);
          }
      }
 
@@ -1218,7 +1239,7 @@ std::vector< std::vector< Vector<double> > >
   const unsigned int cycle = time.get_timestep();
 
   const std::string filename = ("solution-" +
-                                Utilities::int_to_string (cycle, 2) +
+                                Utilities::int_to_string (cycle, 4) +
                                 "." +
                                 Utilities::int_to_string
                                 (triangulation.locally_owned_subdomain(), 4));
@@ -1233,18 +1254,280 @@ std::vector< std::vector< Vector<double> > >
            ++i)
            {
        filenames.push_back ("solution-" +
-                             Utilities::int_to_string (cycle, 2) +
+                             Utilities::int_to_string (cycle, 4) +
                              "." +
                              Utilities::int_to_string (i, 4) +
                              ".vtu");
                            }
        std::ofstream master_output (("solution-" +
-                                    Utilities::int_to_string (cycle, 2) +
+                                    Utilities::int_to_string (cycle, 4) +
                                     ".pvtu").c_str());
       data_out.write_pvtu_record (master_output, filenames);
     }
 
  }
+
+//output quadrature values
+ template <int dim>
+ void Solid<dim>::output_quad()
+ {
+  FEValues<dim> fe_values (fe, qf_cell,
+                update_values   | update_gradients |
+                update_quadrature_points | update_JxW_values);
+  // std::vector<std::vector<double>> outputQuadrature;
+  outputQuadrature.clear();
+  // unsigned int cellID = 0;
+  // std::vector<std::string> header;
+  // header.push_back("JxW");
+  // header.push_back("Qx");
+  // header.push_back("Qy");
+  // header.push_back("Qz");
+  // header.push_back("F11");
+  // header.push_back("F12");
+  // header.push_back("F13");
+  // header.push_back("F21");
+  // header.push_back("F22");
+  // header.push_back("F23");
+  // header.push_back("F31");
+  // header.push_back("F32");
+  // header.push_back("F33");
+  // header.push_back("detF");
+  // header.push_back("Fe11");
+  // header.push_back("Fe12");
+  // header.push_back("Fe13");
+  // header.push_back("Fe21");
+  // header.push_back("Fe22");
+  // header.push_back("Fe23");
+  // header.push_back("Fe31");
+  // header.push_back("Fe32");
+  // header.push_back("Fe33");
+  // header.push_back("Ft11");
+  // header.push_back("Ft12");
+  // header.push_back("Ft13");
+  // header.push_back("Ft21");
+  // header.push_back("Ft22");
+  // header.push_back("Ft23");
+  // header.push_back("Ft31");
+  // header.push_back("Ft32");
+  // header.push_back("Ft33");
+  // header.push_back("E11");
+  // header.push_back("E12");
+  // header.push_back("E13");
+  // header.push_back("E21");
+  // header.push_back("E22");
+  // header.push_back("E23");
+  // header.push_back("E31");
+  // header.push_back("E32");
+  // header.push_back("E33");
+  // header.push_back("Cauchy11");
+  // header.push_back("Cauchy12");
+  // header.push_back("Cauchy13");
+  // header.push_back("Cauchy21");
+  // header.push_back("Cauchy22");
+  // header.push_back("Cauchy23");
+  // header.push_back("Cauchy31");
+  // header.push_back("Cauchy32");
+  // header.push_back("Cauchy33");
+  // header.push_back("dc1");
+  // header.push_back("dc2");
+  // header.push_back("dc3");
+  // header.push_back("X10");
+  // header.push_back("X20");
+  // header.push_back("X30");
+  // header.push_back("X12");
+  // header.push_back("X13");
+  // header.push_back("X21");
+  // header.push_back("X23");
+  // header.push_back("X31");
+  // header.push_back("X32");
+  //
+  // outputQuadrature.push_back(header);
+
+  typename DoFHandler<dim>::active_cell_iterator
+  cell = dof_handler.begin_active(),
+  endc = dof_handler.end();
+  PointHistory<dim> *lqph =
+            reinterpret_cast<PointHistory<dim>*>(cell->user_pointer());
+  for (; cell != endc; ++cell)
+  {
+    if (cell->is_locally_owned())
+    {
+      fe_values.reinit(cell);
+      //loop over quadrature points
+			for (unsigned int q=0; q<n_q_points_f; ++q)
+      {
+				std::vector<double> temp;
+
+        const Tensor<2, dim> F = lqph[q].get_F();
+        const double J = lqph[q].get_det_F();
+        const Tensor<2, dim> Fe = lqph[q].get_Fe();
+        const Tensor<2, dim> Ft = lqph[q].get_Ft();
+        const Tensor<2, dim> E = lqph[q].get_E();
+        const Tensor<2, dim> s = lqph[q].get_tau()/J;
+        const double dc1 = lqph[q].get_update_c1();
+        const double dc2 = lqph[q].get_update_c2();
+        const double dc3 = lqph[q].get_update_c3();
+        const double X10 = lqph[q].get_X10();
+        const double X12 = lqph[q].get_X12();
+        const double X13 = lqph[q].get_X13();
+        const double X20 = lqph[q].get_X20();
+        const double X30 = lqph[q].get_X30();
+        const double X21 = lqph[q].get_X21();
+        const double X31 = lqph[q].get_X31();
+        const double X23 = lqph[q].get_X23();
+        const double X32 = lqph[q].get_X32();
+        const double dc10 = lqph[q].get_dc10();
+        const double dc12 = lqph[q].get_dc12();
+        const double dc13 = lqph[q].get_dc13();
+        const double dc20 = lqph[q].get_dc20();
+        const double dc30 = lqph[q].get_dc30();
+        const double dc21 = lqph[q].get_dc21();
+        const double dc31 = lqph[q].get_dc31();
+        const double dc23 = lqph[q].get_dc23();
+        const double dc32 = lqph[q].get_dc32();
+
+				// temp.push_back(cellOrientationMap[cellID]);
+
+        temp.push_back(fe_values.JxW(q));
+
+        temp.push_back(fe_values.get_quadrature_points()[q][0]);
+				temp.push_back(fe_values.get_quadrature_points()[q][1]);
+				temp.push_back(fe_values.get_quadrature_points()[q][2]);
+
+        temp.push_back(F[0][0]);
+				temp.push_back(F[0][1]);
+				temp.push_back(F[0][2]);
+				temp.push_back(F[1][0]);
+				temp.push_back(F[1][1]);
+				temp.push_back(F[1][2]);
+				temp.push_back(F[2][0]);
+				temp.push_back(F[2][1]);
+				temp.push_back(F[2][2]);
+
+        temp.push_back(J);
+
+        temp.push_back(Fe[0][0]);
+        temp.push_back(Fe[0][1]);
+        temp.push_back(Fe[0][2]);
+        temp.push_back(Fe[1][0]);
+        temp.push_back(Fe[1][1]);
+        temp.push_back(Fe[1][2]);
+        temp.push_back(Fe[2][0]);
+        temp.push_back(Fe[2][1]);
+        temp.push_back(Fe[2][2]);
+
+        temp.push_back(Ft[0][0]);
+				temp.push_back(Ft[0][1]);
+				temp.push_back(Ft[0][2]);
+				temp.push_back(Ft[1][0]);
+				temp.push_back(Ft[1][1]);
+				temp.push_back(Ft[1][2]);
+				temp.push_back(Ft[2][0]);
+				temp.push_back(Ft[2][1]);
+				temp.push_back(Ft[2][2]);
+
+        temp.push_back(E[0][0]);
+				temp.push_back(E[0][1]);
+				temp.push_back(E[0][2]);
+				temp.push_back(E[1][0]);
+				temp.push_back(E[1][1]);
+				temp.push_back(E[1][2]);
+				temp.push_back(E[2][0]);
+				temp.push_back(E[2][1]);
+				temp.push_back(E[2][2]);
+
+        temp.push_back(s[0][0]);
+				temp.push_back(s[0][1]);
+				temp.push_back(s[0][2]);
+				temp.push_back(s[1][0]);
+				temp.push_back(s[1][1]);
+				temp.push_back(s[1][2]);
+				temp.push_back(s[2][0]);
+				temp.push_back(s[2][1]);
+				temp.push_back(s[2][2]);
+
+        temp.push_back(dc1);
+        temp.push_back(dc2);
+        temp.push_back(dc3);
+
+        temp.push_back(X10);
+        temp.push_back(X20);
+        temp.push_back(X30);
+        temp.push_back(X12);
+        temp.push_back(X13);
+        temp.push_back(X21);
+        temp.push_back(X23);
+        temp.push_back(X31);
+        temp.push_back(X32);
+
+        temp.push_back(dc10);
+        temp.push_back(dc20);
+        temp.push_back(dc30);
+        temp.push_back(dc12);
+        temp.push_back(dc13);
+        temp.push_back(dc21);
+        temp.push_back(dc23);
+        temp.push_back(dc31);
+        temp.push_back(dc32);
+
+        outputQuadrature.push_back(temp);
+      }
+    }
+  }
+  writeQuadratureOutput(this->time.get_timestep());
+}
+
+//Save quadrature data
+template <int dim>
+void Solid<dim>::writeQuadratureOutput(unsigned int _currentIncrement)
+{
+	this->pcout << "writing Quadrature data to file\n";
+	//
+	//set output directory, if provided
+	// std::string dir(_outputDirectory);
+
+	// if (_outputDirectory.back() != '/') dir += "/";
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+  {
+	std::string fileName("QuadratureOutputs");
+	std::string fileExtension(".csv");
+	fileName += std::to_string(dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD));
+	std::ofstream file((fileName + Utilities::int_to_string(_currentIncrement,4)+fileExtension).c_str());
+	char buffer[200];
+	if (file.is_open()) {
+		for (std::vector<std::vector<double> >::iterator it = outputQuadrature.begin(); it != outputQuadrature.end(); ++it) {
+			for (std::vector<double>::iterator it2 = it->begin(); it2 != it->end(); ++it2) {
+				sprintf(buffer, "%8.5e ,", *it2);
+				file << buffer;
+			}
+			file << std::endl;
+		}
+		file.close();
+	}
+	else {
+		this->pcout << "Unable to open file for writing quadrature outputs\n";
+		exit(1);
+	}
+
+
+	//join files from all processors into a single file on processor 0
+	//and delete individual processor files
+	// MPI_Barrier(MPI_COMM_WORLD);
+	// if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0) {
+		std::string fileName2("QuadratureOutputs");
+		std::ofstream file2((fileName2 + Utilities::int_to_string(_currentIncrement,4)+fileExtension).c_str());
+		for (unsigned int proc = 0; proc<dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD); proc++) {
+			std::string fileName3("QuadratureOutputs");
+			fileName3 += std::to_string(proc);
+			std::ofstream file3((fileName3 + Utilities::int_to_string(_currentIncrement,4)+fileExtension).c_str(), std::ofstream::in);
+			file2 << file3.rdbuf();
+			//delete file from processor proc
+			remove((fileName3 + Utilities::int_to_string(_currentIncrement,4)+fileExtension).c_str());
+		}
+		file2.close();
+	}
+}
 
 template <int dim>
 void Solid<dim>::output_resultant_stress()
@@ -1458,8 +1741,8 @@ Solid<dim>::solve_c ( )
 
   pcout << "Solving for Volume fractions: \n"
         << solver_control_c1.last_step()<<"+"
-        <<solver_control_c1.last_step()<<"+"
-        <<solver_control_c1.last_step()
+        <<solver_control_c2.last_step()<<"+"
+        <<solver_control_c3.last_step()
         << "   CG Solver iterations for C1, C2 and C3."
           << std::endl;
 
@@ -1476,7 +1759,7 @@ void Solid<dim>::solve_nonlinear_timestep()
   vectorType  temp_solution_update(locally_owned_dofs, mpi_communicator);
   vectorType  tmp(locally_owned_dofs, mpi_communicator);
   tmp = solution;
-    for (; newton_iteration < 100;   ++newton_iteration)
+    for (; newton_iteration < 6000;   ++newton_iteration)
       {
         make_constraints(newton_iteration);
         assemble_system ();
@@ -1486,7 +1769,7 @@ void Solid<dim>::solve_nonlinear_timestep()
          initial_rhs_norm = system_rhs.l2_norm();
          pcout << " Solving for Displacement:   " << std::endl;
        }
-          pcout<<"   rhs_norm : "<<system_rhs.l2_norm();
+          pcout<<newton_iteration<<" -  rhs_norm : "<<system_rhs.l2_norm();
 
        // tangent_matrix.print(pcout) ;
        // system_rhs.print(pcout);
@@ -1503,15 +1786,22 @@ void Solid<dim>::solve_nonlinear_timestep()
 
           update_qph_incremental();
 
+          if (system_rhs.l2_norm() >= 10)
+          {
+            pcout << "Diverging... " << std::endl;
+            MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+          }
 
 
 
-         if (newton_iteration > 0 && ((system_rhs.l2_norm() <= 1e-4 * initial_rhs_norm)||(system_rhs.l2_norm() <= 1e-10)))
+
+          if (newton_iteration > 3 && ((system_rhs.l2_norm() <= 1e-4 * initial_rhs_norm)||(system_rhs.l2_norm() <= 1e-09)))
+          // if (newton_iteration > 0 && system_rhs.l2_norm() <= 1e-4 * initial_rhs_norm)
           {
            pcout << "CONVERGED! " << std::endl;
            break;
           }
-        AssertThrow (newton_iteration < 99,
+        AssertThrow (newton_iteration < 5999,
         ExcMessage("No convergence in nonlinear solver!"));
 
      }
@@ -1561,9 +1851,15 @@ while (time.current() <= time.end() )
 
  solve_nonlinear_timestep();
 
- if(time.get_timestep()%10 == 0)
+ if(time.get_timestep()%1 == 0)
   {
-   output_results();
+    output_results();
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0) {
+   // output_results();
+   output_quad();
+ }
+   // MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
   }
  output_resultant_stress();
 

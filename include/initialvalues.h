@@ -25,7 +25,7 @@ public:
    time_step (time_step)
 
     {}
- virtual double value(/*const Point<dim>   &p,*/
+ virtual double value(const Point<dim>   &p,
                        const unsigned int  /*component = 0*/) const;
 private:
  const int variant ;
@@ -34,7 +34,7 @@ private:
 };
 
 template <int dim>
-double InitialValues<dim>::value (/*const Point<dim>  &p,*/
+double InitialValues<dim>::value (const Point<dim>  &p,
                            const unsigned int /*component*/) const
 {
 

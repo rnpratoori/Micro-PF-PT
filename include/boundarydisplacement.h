@@ -14,7 +14,7 @@ namespace PhaseField
 
   typedef TrilinosWrappers::MPI::Vector vectorType;
   typedef TrilinosWrappers::SparseMatrix matrixType;
-  
+
 template <int dim>
   class BoundaryDisplacement :  public Function<dim>
   {
@@ -54,9 +54,9 @@ BoundaryDisplacement<dim>::vector_value (const Point<dim> &/*p*/,
   //values(direction)=-5e-4;
 
   if(timestep<70)
-      values(direction)=-3e-3;
+      values(direction)=-1.5e-3;
   else if(timestep%10==0)
-      values(direction)=-3e-3;
+      values(direction)=-1.5e-3;
   else
       values(direction)=0.0;
 }
