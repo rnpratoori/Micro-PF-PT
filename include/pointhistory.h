@@ -95,7 +95,7 @@ public:
 //        Jc_M2 = material->get_Jc_M2();
 //        Jc_M3 = material->get_Jc_M3();
     driving_force_noStress = material->get_driving_force_noStress(); // extracting driving force with no stress
-    // k_c1=material->get_threshold_c1();
+    k_c1=material->get_threshold_c1();
     // k_c2=material->get_threshold_c2();
     // k_c3=material->get_threshold_c3();
     // k_c1=0.0069978;
