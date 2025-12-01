@@ -1,3 +1,20 @@
+/**
+ * @file pointhistory.h
+ * @brief Quadrature point history for storing material state
+ *
+ * This class stores and updates the material state at each quadrature point,
+ * including:
+ * - Deformation gradients (total, elastic, transformation)
+ * - Stress tensors (Kirchhoff stress)
+ * - Material tangent tensors
+ * - Phase field variables and their evolution
+ * - Driving forces for phase transformation
+ *
+ * The class manages the material constitutive model and enforces kinetic
+ * constraints on phase transformation.
+ *
+ * Template implementation is in ../src/pointhistory.C
+ */
 #ifndef POINTHISTORY_H
 #define POINTHISTORY_H
 

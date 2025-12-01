@@ -1,5 +1,23 @@
-/* Author: Hamed Babaei, 2018 */
-/* Author: Raghunandan Pratoori, 2020 */
+/**
+ * @file microPF.cc
+ * @brief Main driver program for micro phase-field phase transformation
+ * simulation
+ *
+ * This program simulates phase transformations in materials using a coupled
+ * phase-field and mechanical deformation approach. It uses the deal.II finite
+ * element library for spatial discretization and MPI for parallel computation.
+ *
+ * @author Hamed Babaei (2018)
+ * @author Raghunandan Pratoori (2020)
+ *
+ * The simulation couples:
+ * - Mechanical equilibrium equations for displacement field
+ * - Phase-field kinetic equations for order parameters (martensitic variants)
+ * - Orthotropic material constitutive relations
+ *
+ * The code reads simulation parameters from 'parameters.prm' and outputs
+ * results in VTU format for visualization.
+ */
 #include <fstream>
 #include <iostream>
 #include <memory>
