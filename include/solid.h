@@ -425,13 +425,13 @@ void Solid<dim>::make_constraints(const int &it_nr)
                   if (apply_dirichlet_bc == true)
                     VectorTools::interpolate_boundary_values(dof_handler,
                                                              boundary_id,
-                                                             ZeroFunction<dim>(dim),
+                                                             dealii::Functions::ZeroFunction<dim>(dim),
                                                              constraints,
                                                              (fe.component_mask(x_displacement)));
                   else
                     VectorTools::interpolate_boundary_values(dof_handler,
                                                              boundary_id,
-                                                             ZeroFunction<dim>(dim),
+                                                             dealii::Functions::ZeroFunction<dim>(dim),
                                                              constraints,
                                                              (fe.component_mask(x_displacement)));
                   }
@@ -448,7 +448,7 @@ void Solid<dim>::make_constraints(const int &it_nr)
 //                        else
 //                          VectorTools::interpolate_boundary_values(dof_handler,
 //                                                                   boundary_id,
-//                                                                   ZeroFunction<dim>(dim),
+//                                                                   dealii::Functions::ZeroFunction<dim>(dim),
 //                                                                   constraints,
 //                                                                   fe.component_mask(x_displacement));
 //                   }
@@ -459,13 +459,13 @@ void Solid<dim>::make_constraints(const int &it_nr)
 //                     if (apply_dirichlet_bc == true)
 //                       VectorTools::interpolate_boundary_values(dof_handler,
 //                                                                boundary_id,
-//                                                                ZeroFunction<dim>(dim),
+//                                                                dealii::Functions::ZeroFunction<dim>(dim),
 //                                                               constraints,
 //                                                                fe.component_mask(y_displacement));
 //                     else
 //                       VectorTools::interpolate_boundary_values(dof_handler,
 //                                                                boundary_id,
-//                                                                ZeroFunction<dim>(dim),
+//                                                                dealii::Functions::ZeroFunction<dim>(dim),
 //                                                                constraints,
 //                                                                fe.component_mask(y_displacement));
 //                     }
@@ -482,7 +482,7 @@ void Solid<dim>::make_constraints(const int &it_nr)
 //                      else
 //                        VectorTools::interpolate_boundary_values(dof_handler,
 //                                                                 boundary_id,
-//                                                                 ZeroFunction<dim>(dim),
+//                                                                 dealii::Functions::ZeroFunction<dim>(dim),
 //                                                                 constraints,
 //                                                                 fe.component_mask(y_displacement));
 //                      }
@@ -494,7 +494,7 @@ void Solid<dim>::make_constraints(const int &it_nr)
                         if (apply_dirichlet_bc == true)
                           VectorTools::interpolate_boundary_values(dof_handler,
                                                                    boundary_id,
-                                                                   ZeroFunction<dim>(dim),
+                                                                   dealii::Functions::ZeroFunction<dim>(dim),
                                                                    constraints,
                                                                    fe.component_mask(x_displacement)
                                                                  |
@@ -504,7 +504,7 @@ void Solid<dim>::make_constraints(const int &it_nr)
                         else
                           VectorTools::interpolate_boundary_values(dof_handler,
                                                                    boundary_id,
-                                                                   ZeroFunction<dim>(dim),
+                                                                   dealii::Functions::ZeroFunction<dim>(dim),
                                                                    constraints,
                                                                  fe.component_mask(x_displacement)
                                                                  |
@@ -527,14 +527,14 @@ void Solid<dim>::make_constraints(const int &it_nr)
                         else
                           VectorTools::interpolate_boundary_values(dof_handler,
                                                                    boundary_id,
-                                                                   ZeroFunction<dim>(dim),
+                                                                   dealii::Functions::ZeroFunction<dim>(dim),
                                                                    constraints,
                                                                    fe.component_mask(z_displacement));
                       }
                       else
                         VectorTools::interpolate_boundary_values(dof_handler,
                                                                  boundary_id,
-                                                                 ZeroFunction<dim>(dim),
+                                                                 dealii::Functions::ZeroFunction<dim>(dim),
                                                                  constraints,
                                                                  fe.component_mask(z_displacement));
                    }
@@ -546,7 +546,7 @@ void Solid<dim>::make_constraints(const int &it_nr)
                        if (apply_dirichlet_bc == true)
                          VectorTools::interpolate_boundary_values(dof_handler,
                                                                   boundary_id,
-                                                                 ZeroFunction<dim>(dim),
+                                                                 dealii::Functions::ZeroFunction<dim>(dim),
                                                                   constraints,
                                                                   fe.component_mask(x_displacement)
                                                                  |
@@ -554,7 +554,7 @@ void Solid<dim>::make_constraints(const int &it_nr)
                        else
                          VectorTools::interpolate_boundary_values(dof_handler,
                                                                   boundary_id,
-                                                                  ZeroFunction<dim>(dim),
+                                                                  dealii::Functions::ZeroFunction<dim>(dim),
                                                                   constraints,
                                                                   fe.component_mask(x_displacement)
                                                                  |
