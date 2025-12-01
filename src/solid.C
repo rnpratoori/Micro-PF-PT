@@ -27,12 +27,13 @@ Solid<dim>::Solid(const std::string &input_file)
       qf_cell_c(parameters.quad_order), n_q_points_c(qf_cell_c.size()),
 
       history_dof_handler(triangulation), history_fe(parameters.poly_degree),
-      apply_strain(false), load_step(1), load(0.0), output_directory("output") {
-  // Create output directory if it doesn't exist
-  if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0) {
-    std::system(("mkdir -p " + output_directory).c_str());
-  }
-  MPI_Barrier(mpi_communicator);
+      apply_strain(false), load_step(1), load(0.0), output_directory("output"),
+      suppress_file_output(true) {
+  // Create output directory if it doesn't exist - No longer needed as file output is suppressed
+  // if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0) {
+  //   std::system(("mkdir -p " + output_directory).c_str());
+  // }
+  // MPI_Barrier(mpi_communicator);
 }
 
 // destructor
@@ -1010,35 +1011,37 @@ template <int dim> void Solid<dim>::output_results() const {
                            "dc3", data_component_interpretation2);
   //////////////////////////
   // writing output files
-  MappingQEulerian<dim, vectorType> q_mapping(degree, dof_handler, solution);
+  if (!this->suppress_file_output) {
+    MappingQEulerian<dim, vectorType> q_mapping(degree, dof_handler, solution);
 
-  Vector<float> subdomain(triangulation.n_active_cells());
-  for (unsigned int i = 0; i < subdomain.size(); ++i)
-    subdomain(i) = triangulation.locally_owned_subdomain();
-  data_out.add_data_vector(subdomain, "subdomain");
+    Vector<float> subdomain(triangulation.n_active_cells());
+    for (unsigned int i = 0; i < subdomain.size(); ++i)
+      subdomain(i) = triangulation.locally_owned_subdomain();
+    data_out.add_data_vector(subdomain, "subdomain");
 
-  data_out.build_patches(q_mapping, degree);
+    data_out.build_patches(q_mapping, degree);
 
-  const unsigned int cycle = time.get_timestep();
+    const unsigned int cycle = time.get_timestep();
 
-  const std::string filename =
-      (output_directory + "/solution-" + Utilities::int_to_string(cycle, 4) +
-       "." +
-       Utilities::int_to_string(triangulation.locally_owned_subdomain(), 4));
-  std::ofstream output((filename + ".vtu").c_str());
-  data_out.write_vtu(output);
+    const std::string filename =
+        (output_directory + "/solution-" + Utilities::int_to_string(cycle, 4) +
+         "." +
+         Utilities::int_to_string(triangulation.locally_owned_subdomain(), 4));
+    std::ofstream output((filename + ".vtu").c_str());
+    data_out.write_vtu(output);
 
-  if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0) {
-    std::vector<std::string> filenames;
-    for (unsigned int i = 0;
-         i < Utilities::MPI::n_mpi_processes(mpi_communicator); ++i) {
-      filenames.push_back("solution-" + Utilities::int_to_string(cycle, 4) +
-                          "." + Utilities::int_to_string(i, 4) + ".vtu");
+    if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0) {
+      std::vector<std::string> filenames;
+      for (unsigned int i = 0;
+           i < Utilities::MPI::n_mpi_processes(mpi_communicator); ++i) {
+        filenames.push_back("solution-" + Utilities::int_to_string(cycle, 4) +
+                            "." + Utilities::int_to_string(i, 4) + ".vtu");
+      }
+      std::ofstream master_output((output_directory + "/solution-" +
+                                   Utilities::int_to_string(cycle, 4) + ".pvtu")
+                                      .c_str());
+      data_out.write_pvtu_record(master_output, filenames);
     }
-    std::ofstream master_output((output_directory + "/solution-" +
-                                 Utilities::int_to_string(cycle, 4) + ".pvtu")
-                                    .c_str());
-    data_out.write_pvtu_record(master_output, filenames);
   }
 }
 
@@ -1250,68 +1253,70 @@ template <int dim> void Solid<dim>::output_quad() {
 // Save quadrature data
 template <int dim>
 void Solid<dim>::writeQuadratureOutput(unsigned int _currentIncrement) {
-  this->pcout << "writing Quadrature data to file" << std::endl;
-  //
-  // set output directory, if provided
-  // std::string dir(_outputDirectory);
+  if (!this->suppress_file_output) {
+    this->pcout << "writing Quadrature data to file" << std::endl;
+    //
+    // set output directory, if provided
+    // std::string dir(_outputDirectory);
 
-  // if (_outputDirectory.back() != '/') dir += "/";
-  // MPI_Barrier(MPI_COMM_WORLD);
-  // if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
-  {
-    std::string fileName(output_directory + "/QuadratureOutputs");
-    std::string fileExtension(".csv");
-    fileName += std::to_string(
-        dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD));
-    std::ofstream file((fileName +
-                        Utilities::int_to_string(_currentIncrement, 4) +
-                        fileExtension)
-                           .c_str());
-    char buffer[200];
-    if (file.is_open()) {
-      for (std::vector<std::vector<double>>::iterator it =
-               outputQuadrature.begin();
-           it != outputQuadrature.end(); ++it) {
-        for (std::vector<double>::iterator it2 = it->begin(); it2 != it->end();
-             ++it2) {
-          sprintf(buffer, "%8.5e ,", *it2);
-          file << buffer;
+    // if (_outputDirectory.back() != '/') dir += "/";
+    // MPI_Barrier(MPI_COMM_WORLD);
+    // if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+    {
+      std::string fileName(output_directory + "/QuadratureOutputs");
+      std::string fileExtension(".csv");
+      fileName += std::to_string(
+          dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD));
+      std::ofstream file((fileName +
+                          Utilities::int_to_string(_currentIncrement, 4) +
+                          fileExtension)
+                             .c_str());
+      char buffer[200];
+      if (file.is_open()) {
+        for (std::vector<std::vector<double>>::iterator it =
+                 outputQuadrature.begin();
+             it != outputQuadrature.end(); ++it) {
+          for (std::vector<double>::iterator it2 = it->begin();
+               it2 != it->end(); ++it2) {
+            sprintf(buffer, "%8.5e ,", *it2);
+            file << buffer;
+          }
+          file << std::endl;
         }
-        file << std::endl;
+        file.close();
+      } else {
+        this->pcout << "Unable to open file for writing quadrature outputs"
+                    << std::endl;
+        exit(1);
       }
-      file.close();
-    } else {
-      this->pcout << "Unable to open file for writing quadrature outputs"
-                  << std::endl;
-      exit(1);
-    }
 
-    // join files from all processors into a single file on processor 0
-    // and delete individual processor files
-    //  MPI_Barrier(MPI_COMM_WORLD);
-    //  if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0) {
-    std::string fileName2(output_directory + "/QuadratureOutputs");
-    std::ofstream file2((fileName2 +
-                         Utilities::int_to_string(_currentIncrement, 4) +
-                         fileExtension)
-                            .c_str());
-    for (unsigned int proc = 0;
-         proc < dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
-         proc++) {
-      std::string fileName3(output_directory + "/QuadratureOutputs");
-      fileName3 += std::to_string(proc);
-      std::ofstream file3((fileName3 +
+      // join files from all processors into a single file on processor 0
+      // and delete individual processor files
+      //  MPI_Barrier(MPI_COMM_WORLD);
+      //  if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0) {
+      std::string fileName2(output_directory + "/QuadratureOutputs");
+      std::ofstream file2((fileName2 +
                            Utilities::int_to_string(_currentIncrement, 4) +
                            fileExtension)
-                              .c_str(),
-                          std::ofstream::in);
-      file2 << file3.rdbuf();
-      // delete file from processor proc
-      remove((fileName3 + Utilities::int_to_string(_currentIncrement, 4) +
-              fileExtension)
-                 .c_str());
+                              .c_str());
+      for (unsigned int proc = 0;
+           proc < dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
+           proc++) {
+        std::string fileName3(output_directory + "/QuadratureOutputs");
+        fileName3 += std::to_string(proc);
+        std::ofstream file3((fileName3 +
+                             Utilities::int_to_string(_currentIncrement, 4) +
+                             fileExtension)
+                                .c_str(),
+                            std::ofstream::in);
+        file2 << file3.rdbuf();
+        // delete file from processor proc
+        remove((fileName3 + Utilities::int_to_string(_currentIncrement, 4) +
+                fileExtension)
+                   .c_str());
+      }
+      file2.close();
     }
-    file2.close();
   }
 }
 

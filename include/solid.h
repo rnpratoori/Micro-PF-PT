@@ -186,6 +186,7 @@ private:
 
   /** @brief Directory for output files */
   std::string output_directory;
+  bool suppress_file_output;
 
   std::vector<std::vector<double>> outputQuadrature;
 };
