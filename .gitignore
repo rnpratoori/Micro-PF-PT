@@ -1,0 +1,18 @@
+# Build artifacts
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+compile_commands.json
+microPF
+
+# Output files
+*.vtu
+*.pvtu
+*.csv
+*.txt
+!CMakeLists.txt
+!parameters.prm
+
+# Cache
+.cache/
