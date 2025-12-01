@@ -6,13 +6,8 @@ cmake_install.cmake
 compile_commands.json
 microPF
 
-# Output files
-*.vtu
-*.pvtu
-*.csv
-*.txt
-!CMakeLists.txt
-!parameters.prm
+# Output directory
+output/
 
 # Cache
 .cache/

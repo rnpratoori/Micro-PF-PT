@@ -184,6 +184,9 @@ private:
   double load_step;
   double load;
 
+  /** @brief Directory for output files */
+  std::string output_directory;
+
   std::vector<std::vector<double>> outputQuadrature;
 };
 

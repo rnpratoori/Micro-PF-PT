@@ -27,7 +27,13 @@ Solid<dim>::Solid(const std::string &input_file)
       qf_cell_c(parameters.quad_order), n_q_points_c(qf_cell_c.size()),
 
       history_dof_handler(triangulation), history_fe(parameters.poly_degree),
-      apply_strain(false), load_step(1), load(0.0) {}
+      apply_strain(false), load_step(1), load(0.0), output_directory("output") {
+  // Create output directory if it doesn't exist
+  if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0) {
+    std::system(("mkdir -p " + output_directory).c_str());
+  }
+  MPI_Barrier(mpi_communicator);
+}
 
 // destructor
 template <int dim> Solid<dim>::~Solid() {
@@ -1016,7 +1022,8 @@ template <int dim> void Solid<dim>::output_results() const {
   const unsigned int cycle = time.get_timestep();
 
   const std::string filename =
-      ("solution-" + Utilities::int_to_string(cycle, 4) + "." +
+      (output_directory + "/solution-" + Utilities::int_to_string(cycle, 4) +
+       "." +
        Utilities::int_to_string(triangulation.locally_owned_subdomain(), 4));
   std::ofstream output((filename + ".vtu").c_str());
   data_out.write_vtu(output);
@@ -1028,8 +1035,9 @@ template <int dim> void Solid<dim>::output_results() const {
       filenames.push_back("solution-" + Utilities::int_to_string(cycle, 4) +
                           "." + Utilities::int_to_string(i, 4) + ".vtu");
     }
-    std::ofstream master_output(
-        ("solution-" + Utilities::int_to_string(cycle, 4) + ".pvtu").c_str());
+    std::ofstream master_output((output_directory + "/solution-" +
+                                 Utilities::int_to_string(cycle, 4) + ".pvtu")
+                                    .c_str());
     data_out.write_pvtu_record(master_output, filenames);
   }
 }
@@ -1251,7 +1259,7 @@ void Solid<dim>::writeQuadratureOutput(unsigned int _currentIncrement) {
   // MPI_Barrier(MPI_COMM_WORLD);
   // if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
   {
-    std::string fileName("QuadratureOutputs");
+    std::string fileName(output_directory + "/QuadratureOutputs");
     std::string fileExtension(".csv");
     fileName += std::to_string(
         dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD));
@@ -1282,7 +1290,7 @@ void Solid<dim>::writeQuadratureOutput(unsigned int _currentIncrement) {
     // and delete individual processor files
     //  MPI_Barrier(MPI_COMM_WORLD);
     //  if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0) {
-    std::string fileName2("QuadratureOutputs");
+    std::string fileName2(output_directory + "/QuadratureOutputs");
     std::ofstream file2((fileName2 +
                          Utilities::int_to_string(_currentIncrement, 4) +
                          fileExtension)
@@ -1290,7 +1298,7 @@ void Solid<dim>::writeQuadratureOutput(unsigned int _currentIncrement) {
     for (unsigned int proc = 0;
          proc < dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
          proc++) {
-      std::string fileName3("QuadratureOutputs");
+      std::string fileName3(output_directory + "/QuadratureOutputs");
       fileName3 += std::to_string(proc);
       std::ofstream file3((fileName3 +
                            Utilities::int_to_string(_currentIncrement, 4) +
@@ -1378,11 +1386,14 @@ template <int dim> void Solid<dim>::output_resultant_stress() {
     std::ofstream myfile_3;
     std::ofstream myfile_4;
     std::ofstream myfile_5;
-    myfile_1.open("resultant_cauchy_stress.txt");
-    myfile_2.open("resultant_first_piola_stress.txt");
-    myfile_3.open("resultant_second_piola_stress.txt");
-    myfile_4.open("resultant_lagrangian_strain.txt");
-    myfile_5.open("order_parameter.txt");
+    myfile_1.open((output_directory + "/resultant_cauchy_stress.txt").c_str());
+    myfile_2.open(
+        (output_directory + "/resultant_first_piola_stress.txt").c_str());
+    myfile_3.open(
+        (output_directory + "/resultant_second_piola_stress.txt").c_str());
+    myfile_4.open(
+        (output_directory + "/resultant_lagrangian_strain.txt").c_str());
+    myfile_5.open((output_directory + "/order_parameter.txt").c_str());
     for (unsigned int n = 0; n < time.get_timestep(); n++) {
       myfile_1 << resultant_cauchy_stress[n] << std::endl;
       myfile_2 << resultant_first_piola_stress[n] << std::endl;
