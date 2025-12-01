@@ -69,7 +69,7 @@ end
 
 subsection Time
   # End time
-  set End time       = 20e5
+  set End time       = 5e3
 
   # Time step size
   set Time step size = 500
