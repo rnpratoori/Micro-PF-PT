@@ -137,18 +137,16 @@ protected:
   Tensor<2, dim> EeEe;
   Tensor<2, dim> Rot_mat_2;
 
-  double C_A_11, C_A_12, C_A_13, C_A_33, C_A_44, C_M_11, C_M_12, C_M_13, C_M_33,
-      C_M_44;
-  double lambda_A_iso, mu_A_iso, lambda_M_iso, mu_M_iso, lambda_iso, mu_iso;
-  // double mu_A_iso,mu_M_iso,mu_iso;
+  double C_A_11, C_A_12, C_A_13, C_A_33, C_A_44;
+  double C_M_11, C_M_12, C_M_13, C_M_33, C_M_44;
+  double lambda_A_iso, mu_A_iso;
+  double lambda_M_iso, mu_M_iso;
 
   Vector<double> C_A, C_M1, C_M2, C_M3;
   Vector<double> lambda_A, lambda_M1, lambda_M2, lambda_M3, lambda;
   Vector<double> mu_A, mu_M1, mu_M2, mu_M3, mu;
   Vector<double> nu_A, nu_M1, nu_M2, nu_M3, nu;
 
-  // double lambda_A_iso,lambda_M_iso,lambda_iso;
-  // double mu_A_iso,mu_M_iso,mu_iso;
   // double lambda_A_iso,lambda_M_iso,lambda_iso;
 
   double A0;
@@ -157,6 +155,13 @@ protected:
   double c_total;
   double c0, c1, c2, c3;
   double kd1, kr1, kd3, kr3;
+
+  // Cached elasticity tensors for performance (avoid recomputing)
+  mutable SymmetricTensor<4, dim> C_A_cached;
+  mutable SymmetricTensor<4, dim> C_M1_cached;
+  mutable SymmetricTensor<4, dim> C_M2_cached;
+  mutable SymmetricTensor<4, dim> C_M3_cached;
+  mutable bool tensors_initialized;
 };
 } // namespace PhaseField
 

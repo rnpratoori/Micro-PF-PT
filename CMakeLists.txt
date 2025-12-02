@@ -37,6 +37,12 @@ IF(NOT ${deal.II_FOUND})
     )
 ENDIF()
 
+# Enable aggressive optimizations for Release builds
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -funroll-loops")
+  message(STATUS "Added optimization flags: -O3 -march=native -funroll-loops")
+endif()
+
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
 PROJECT(${TARGET})
 DEAL_II_INVOKE_AUTOPILOT()

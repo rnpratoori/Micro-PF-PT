@@ -119,9 +119,8 @@ private:
   Parameters::AllParameters parameters;
 
   Time time; // variable of type class 'Time'
-  // TimerOutput                      timer;
-
   ConditionalOStream pcout;
+  mutable TimerOutput timer;
 
   const unsigned int degree;   // degree of polynomial of shape functions
   const FESystem<dim> fe;      // fe object

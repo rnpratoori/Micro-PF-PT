@@ -28,7 +28,7 @@ Material_Constitutive<dim>::Material_Constitutive(
       mu_M3(Vector<double>(3)), mu(Vector<double>(3)), nu_A(Vector<double>(3)),
       nu_M1(Vector<double>(3)), nu_M2(Vector<double>(3)),
       nu_M3(Vector<double>(3)), nu(Vector<double>(3)), A0(A),
-      delta_psi0(delta_psi) {}
+      delta_psi0(delta_psi), tensors_initialized(false) {}
 
 template <int dim> Material_Constitutive<dim>::~Material_Constitutive() {}
 
@@ -122,6 +122,9 @@ void Material_Constitutive<dim>::update_material_data(const Tensor<2, dim> &F,
   nu_M1[1] = 0.5 * (C_M1[3] + C_M1[5] - C_M1[4]);
   nu_M1[2] = 0.5 * (C_M1[3] + C_M1[4] - C_M1[5]);
 
+  // Invalidate cached elasticity tensors since Fe has changed
+  tensors_initialized = false;
+
   Assert(det_F > 0, ExcInternalError());
 }
 
@@ -213,14 +216,23 @@ SymmetricTensor<4, dim> Material_Constitutive<dim>::get_Jc() const {
 template <int dim>
 SymmetricTensor<4, dim> Material_Constitutive<dim>::get_Jc_A() const {
 
-  SymmetricTensor<4, dim> elasticityTensor_A;
+  // Return cached value if already computed
+  if (tensors_initialized) {
+    return C_A_cached;
+  }
+
+  // Compute all four tensors once and cache them
+  C_A_cached = SymmetricTensor<4, dim>();
+  C_M1_cached = SymmetricTensor<4, dim>();
+  C_M2_cached = SymmetricTensor<4, dim>();
+  C_M3_cached = SymmetricTensor<4, dim>();
 
   for (unsigned int n = 0; n < dim; ++n)
     for (unsigned int i = 0; i < dim; ++i)
       for (unsigned int j = 0; j < dim; ++j)
         for (unsigned int k = 0; k < dim; ++k)
           for (unsigned int l = 0; l < dim; ++l) {
-            elasticityTensor_A[i][j][k][l] +=
+            C_A_cached[i][j][k][l] +=
                 lambda_A[n] * Fe[i][n] * Fe[j][n] * Fe[k][n] * Fe[l][n] +
                 mu_A[n] * (Fe[i][n] * Fe[j][n] * ge[k][l] +
                            ge[i][j] * Fe[k][n] * Fe[l][n]) +
@@ -228,21 +240,8 @@ SymmetricTensor<4, dim> Material_Constitutive<dim>::get_Jc_A() const {
                            Fe[j][n] * ge[i][k] * Fe[l][n] +
                            Fe[i][n] * ge[j][l] * Fe[k][n] +
                            Fe[j][n] * ge[i][l] * Fe[k][n]);
-          }
-  return elasticityTensor_A;
-}
 
-template <int dim>
-SymmetricTensor<4, dim> Material_Constitutive<dim>::get_Jc_M1() const {
-
-  SymmetricTensor<4, dim> elasticityTensor_M1;
-
-  for (unsigned int n = 0; n < dim; ++n)
-    for (unsigned int i = 0; i < dim; ++i)
-      for (unsigned int j = 0; j < dim; ++j)
-        for (unsigned int k = 0; k < dim; ++k)
-          for (unsigned int l = 0; l < dim; ++l) {
-            elasticityTensor_M1[i][j][k][l] +=
+            C_M1_cached[i][j][k][l] +=
                 lambda_M1[n] * Fe[i][n] * Fe[j][n] * Fe[k][n] * Fe[l][n] +
                 mu_M1[n] * (Fe[i][n] * Fe[j][n] * ge[k][l] +
                             ge[i][j] * Fe[k][n] * Fe[l][n]) +
@@ -250,54 +249,57 @@ SymmetricTensor<4, dim> Material_Constitutive<dim>::get_Jc_M1() const {
                             Fe[j][n] * ge[i][k] * Fe[l][n] +
                             Fe[i][n] * ge[j][l] * Fe[k][n] +
                             Fe[j][n] * ge[i][l] * Fe[k][n]);
-          }
-  return elasticityTensor_M1;
-}
 
-template <int dim>
-SymmetricTensor<4, dim> Material_Constitutive<dim>::get_Jc_M2() const {
-
-  SymmetricTensor<4, dim> elasticityTensor_M2;
-
-  for (unsigned int n = 0; n < dim; ++n)
-    for (unsigned int i = 0; i < dim; ++i)
-      for (unsigned int j = 0; j < dim; ++j)
-        for (unsigned int k = 0; k < dim; ++k)
-          for (unsigned int l = 0; l < dim; ++l) {
-            elasticityTensor_M2[i][j][k][l] +=
-                lambda_M1[n] * Fe_M2[i][n] * Fe_M2[j][n] * Fe_M2[k][n] *
+            C_M2_cached[i][j][k][l] +=
+                lambda_M2[n] * Fe_M2[i][n] * Fe_M2[j][n] * Fe_M2[k][n] *
                     Fe_M2[l][n] +
-                mu_M1[n] * (Fe_M2[i][n] * Fe_M2[j][n] * ge_M2[k][l] +
+                mu_M2[n] * (Fe_M2[i][n] * Fe_M2[j][n] * ge_M2[k][l] +
                             ge_M2[i][j] * Fe_M2[k][n] * Fe_M2[l][n]) +
-                nu_M1[n] * (Fe_M2[i][n] * ge_M2[j][k] * Fe_M2[l][n] +
+                nu_M2[n] * (Fe_M2[i][n] * ge_M2[j][k] * Fe_M2[l][n] +
                             Fe_M2[j][n] * ge_M2[i][k] * Fe_M2[l][n] +
                             Fe_M2[i][n] * ge_M2[j][l] * Fe_M2[k][n] +
                             Fe_M2[j][n] * ge_M2[i][l] * Fe_M2[k][n]);
-          }
-  return elasticityTensor_M2;
-}
 
-template <int dim>
-SymmetricTensor<4, dim> Material_Constitutive<dim>::get_Jc_M3() const {
-
-  SymmetricTensor<4, dim> elasticityTensor_M3;
-
-  for (unsigned int n = 0; n < dim; ++n)
-    for (unsigned int i = 0; i < dim; ++i)
-      for (unsigned int j = 0; j < dim; ++j)
-        for (unsigned int k = 0; k < dim; ++k)
-          for (unsigned int l = 0; l < dim; ++l) {
-            elasticityTensor_M3[i][j][k][l] +=
-                lambda_M1[n] * Fe_M3[i][n] * Fe_M3[j][n] * Fe_M3[k][n] *
+            C_M3_cached[i][j][k][l] +=
+                lambda_M3[n] * Fe_M3[i][n] * Fe_M3[j][n] * Fe_M3[k][n] *
                     Fe_M3[l][n] +
-                mu_M1[n] * (Fe_M3[i][n] * Fe_M3[j][n] * ge_M3[k][l] +
+                mu_M3[n] * (Fe_M3[i][n] * Fe_M3[j][n] * ge_M3[k][l] +
                             ge_M3[i][j] * Fe_M3[k][n] * Fe_M3[l][n]) +
-                nu_M1[n] * (Fe_M3[i][n] * ge_M3[j][k] * Fe_M3[l][n] +
+                nu_M3[n] * (Fe_M3[i][n] * ge_M3[j][k] * Fe_M3[l][n] +
                             Fe_M3[j][n] * ge_M3[i][k] * Fe_M3[l][n] +
                             Fe_M3[i][n] * ge_M3[j][l] * Fe_M3[k][n] +
                             Fe_M3[j][n] * ge_M3[i][l] * Fe_M3[k][n]);
           }
-  return elasticityTensor_M3;
+
+  tensors_initialized = true;
+  return C_A_cached;
+}
+
+template <int dim>
+SymmetricTensor<4, dim> Material_Constitutive<dim>::get_Jc_M1() const {
+  // Ensure cache is initialized by calling get_Jc_A if needed
+  if (!tensors_initialized) {
+    get_Jc_A(); // This will compute and cache all four tensors
+  }
+  return C_M1_cached;
+}
+
+template <int dim>
+SymmetricTensor<4, dim> Material_Constitutive<dim>::get_Jc_M2() const {
+  // Ensure cache is initialized
+  if (!tensors_initialized) {
+    get_Jc_A(); // This will compute and cache all four tensors
+  }
+  return C_M2_cached;
+}
+
+template <int dim>
+SymmetricTensor<4, dim> Material_Constitutive<dim>::get_Jc_M3() const {
+  // Ensure cache is initialized
+  if (!tensors_initialized) {
+    get_Jc_A(); // This will compute and cache all four tensors
+  }
+  return C_M3_cached;
 }
 
 // compute the driving force excluding the transformational work

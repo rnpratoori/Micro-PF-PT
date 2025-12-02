@@ -11,10 +11,8 @@ Solid<dim>::Solid(const std::string &input_file)
 
       pcout(std::cout,
             (Utilities::MPI::this_mpi_process(mpi_communicator) == 0)),
-      //    timer(mpi_communicator,
-      //          pcout,
-      //          TimerOutput::summary,
-      //          TimerOutput::wall_times),
+      timer(mpi_communicator, pcout, TimerOutput::summary,
+            TimerOutput::wall_times),
 
       degree(parameters.poly_degree),
       fe(FE_Q<dim>(parameters.poly_degree), dim), // displacement
@@ -29,8 +27,9 @@ Solid<dim>::Solid(const std::string &input_file)
       history_dof_handler(triangulation), history_fe(parameters.poly_degree),
       apply_strain(false), load_step(1), load(0.0), output_directory("output"),
       suppress_file_output(true) {
-  // Create output directory if it doesn't exist - No longer needed as file output is suppressed
-  // if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0) {
+  // Create output directory if it doesn't exist - No longer needed as file
+  // output is suppressed if (Utilities::MPI::this_mpi_process(mpi_communicator)
+  // == 0) {
   //   std::system(("mkdir -p " + output_directory).c_str());
   // }
   // MPI_Barrier(mpi_communicator);
@@ -44,6 +43,7 @@ template <int dim> Solid<dim>::~Solid() {
 
 // make_grid
 template <int dim> void Solid<dim>::make_grid() {
+  timer.enter_subsection("Grid Generation");
 
   std::vector<unsigned int> repetitions(dim, 15);
   if (dim == 3)
@@ -53,10 +53,12 @@ template <int dim> void Solid<dim>::make_grid() {
   GridGenerator::subdivided_hyper_rectangle(triangulation, repetitions,
                                             Point<dim>(0.0, 0.0, 0.0),
                                             Point<dim>(0.5, 1.0, 1.5), true);
+  timer.leave_subsection();
 }
 
 // system_setup
 template <int dim> void Solid<dim>::system_setup() {
+  timer.enter_subsection("System Setup");
   dof_handler.distribute_dofs(fe);
   dof_handler_c.distribute_dofs(fe_c);
   history_dof_handler.distribute_dofs(history_fe);
@@ -190,6 +192,7 @@ template <int dim> void Solid<dim>::system_setup() {
   static_order_parameter.reinit(100000);
 
   setup_qph();
+  timer.leave_subsection();
 }
 
 // make_constraints
@@ -515,6 +518,7 @@ template <int dim> void Solid<dim>::make_constraints(const int &it_nr) {
 
 // assemble_system
 template <int dim> void Solid<dim>::assemble_system() {
+  timer.enter_subsection("Assemble System");
   tangent_matrix = 0;
   system_rhs = 0;
 
@@ -681,6 +685,7 @@ template <int dim> void Solid<dim>::assemble_system() {
 
   tangent_matrix.compress(VectorOperation::add);
   system_rhs.compress(VectorOperation::add);
+  timer.leave_subsection();
 }
 
 // Assemplying system matrix and RHS for the phase-field kinetic equation
@@ -802,6 +807,7 @@ template <int dim> void Solid<dim>::setup_qph() {
 
 // update_qph_incremental
 template <int dim> void Solid<dim>::update_qph_incremental() {
+  timer.enter_subsection("Update QPH");
   FEValues<dim> fe_values(
       fe, qf_cell, update_values | update_gradients | update_quadrature_points);
   FEValues<dim> fe_values_c(fe_c, qf_cell,
@@ -850,6 +856,7 @@ template <int dim> void Solid<dim>::update_qph_incremental() {
 
 // output_results
 template <int dim> void Solid<dim>::output_results() const {
+  timer.enter_subsection("Output Results");
   DataOut<dim> data_out;
 
   // Output displacement and c
@@ -1043,6 +1050,7 @@ template <int dim> void Solid<dim>::output_results() const {
       data_out.write_pvtu_record(master_output, filenames);
     }
   }
+  timer.leave_subsection();
 }
 
 // output quadrature values
@@ -1247,6 +1255,7 @@ template <int dim> void Solid<dim>::output_quad() {
       }
     }
   }
+  timer.leave_subsection();
   writeQuadratureOutput(this->time.get_timestep());
 }
 
@@ -1446,6 +1455,7 @@ template <int dim> unsigned int Solid<dim>::solve() {
 
 // Solve phase-field kinetic equation
 template <int dim> void Solid<dim>::solve_c() {
+  timer.enter_subsection("Solve Phase Field");
   assemble_system_c();
   vectorType solution_update_c1(locally_owned_dofs_c, mpi_communicator);
   vectorType solution_update_c2(locally_owned_dofs_c, mpi_communicator);
@@ -1530,11 +1540,13 @@ template <int dim> void Solid<dim>::solve_c() {
         << "+" << solver_control_c2.last_step() << "+"
         << solver_control_c3.last_step()
         << "   CG Solver iterations for C1, C2 and C3." << std::endl;
+  timer.leave_subsection();
 }
 
 // Solve Newton-Raphson iterative alqorithm to solve nonlinear mechanical
 // problem
 template <int dim> void Solid<dim>::solve_nonlinear_timestep() {
+  timer.enter_subsection("Solve Nonlinear Timestep");
   double initial_rhs_norm = 0.;
   unsigned int newton_iteration = 0;
   unsigned int n_iterations = 0;
@@ -1553,9 +1565,10 @@ template <int dim> void Solid<dim>::solve_nonlinear_timestep() {
 
     // tangent_matrix.print(pcout) ;
     // system_rhs.print(pcout);
-
+    timer.enter_subsection("Solve Linear System");
     n_iterations = solve();
     pcout << "    Number of CG iterations: " << n_iterations << std::endl;
+    timer.leave_subsection();
 
     temp_solution_update = solution_update;
 
@@ -1581,6 +1594,7 @@ template <int dim> void Solid<dim>::solve_nonlinear_timestep() {
     AssertThrow(newton_iteration < 5999,
                 ExcMessage("No convergence in nonlinear solver!"));
   }
+  timer.leave_subsection();
 }
 
 // run
