@@ -45,14 +45,21 @@ template <int dim> Solid<dim>::~Solid() {
 template <int dim> void Solid<dim>::make_grid() {
   timer.enter_subsection("Grid Generation");
 
-  std::vector<unsigned int> repetitions(dim, 15);
-  if (dim == 3)
-    repetitions[dim - 2] = 10;
-  repetitions[dim - 3] = 5;
+  GridGenerator::hyper_cube(triangulation, -0.5, 0.5, true);
 
-  GridGenerator::subdivided_hyper_rectangle(triangulation, repetitions,
-                                            Point<dim>(0.0, 0.0, 0.0),
-                                            Point<dim>(0.5, 1.0, 1.5), true);
+  // Describe periodicity
+  std::vector<GridTools::PeriodicFacePair<
+      typename parallel::distributed::Triangulation<dim>::cell_iterator>>
+      periodicity_vector;
+  GridTools::collect_periodic_faces(triangulation, 0, 1, 0, periodicity_vector);
+  // GridTools::collect_periodic_faces(triangulation, 2, 3, 1,
+  // periodicity_vector); GridTools::collect_periodic_faces(triangulation, 4, 5,
+  // 2, periodicity_vector);
+  triangulation.add_periodicity(periodicity_vector);
+  pcout << "periodic facepairs: " << periodicity_vector.size() << std::endl;
+
+  triangulation.refine_global(parameters.refinement);
+
   timer.leave_subsection();
 }
 
@@ -75,44 +82,26 @@ template <int dim> void Solid<dim>::system_setup() {
   locally_owned_dofs = dof_handler.locally_owned_dofs();
   DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
 
-  constraints.clear();
-  constraints.reinit(locally_relevant_dofs);
+  // constraints.clear();
+  // constraints.reinit(locally_relevant_dofs);
+  // {
+  //   // ...
+  // }
+  // constraints.close();
 
-  {
-    //      DoFTools::make_periodicity_constraints(dof_handler,
-    //                                             /*b_id*/ 0,
-    //                                             /*b_id*/ 1,
-    //                                             /*direction*/ 0,
-    //                                             constraints);
-    //      DoFTools::make_periodicity_constraints(dof_handler,
-    //                                             /*b_id*/ 2,
-    //                                             /*b_id*/ 3,
-    //                                             /*direction*/ 1,
-    //                                             constraints);
-    //      DoFTools::make_periodicity_constraints(dof_handler,
-    //                                               /*b_id*/ 4,
-    //                                               /*b_id*/ 5,
-    //                                               /*direction*/ 2,
-    //                                               constraints);
-  }
-  constraints.close();
+  // CRITICAL FIX: Call make_constraints to ensure sparsity pattern includes
+  // periodic constraints. Passing -1 avoids applying Dirichlet BCs but
+  // includes periodic BCs which are structural.
+  make_constraints(-1);
 
   DynamicSparsityPattern dsp(locally_relevant_dofs);
   DoFTools::make_sparsity_pattern(dof_handler, dsp, constraints, false);
   Utilities::MPI::all_gather(mpi_communicator,
-                             dof_handler.locally_owned_dofs()),
-      // std::cout <<dof_handler.n_locally_owned_dofs() << std::endl;
-      // std::cout <<dof_handler.n_dofs() << std::endl;
-      //
-      // MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+                             dof_handler.locally_owned_dofs());
 
-      // SparsityTools::distribute_sparsity_pattern (dsp,
-      //                                             dof_handler.n_locally_owned_dofs_per_processor(),
-      //                                             mpi_communicator,
-      //                                             locally_relevant_dofs);
-      SparsityTools::distribute_sparsity_pattern(
-          dsp, dof_handler.locally_owned_dofs(), mpi_communicator,
-          locally_relevant_dofs);
+  SparsityTools::distribute_sparsity_pattern(
+      dsp, dof_handler.locally_owned_dofs(), mpi_communicator,
+      locally_relevant_dofs);
   // Utilities::MPI::all_gather(mpi_communicator, locally_owned_dofs);
 
   tangent_matrix.reinit(locally_owned_dofs, locally_owned_dofs, dsp,
@@ -210,313 +199,66 @@ template <int dim> void Solid<dim>::make_constraints(const int &it_nr) {
   const FEValuesExtractors::Scalar y_displacement(1);
   const FEValuesExtractors::Scalar z_displacement(2);
 
-  // // Fixing points or lines
-
-  //        const double tol_boundary = 0.01;
-  //        typename DoFHandler<dim>::active_cell_iterator
-  //         cell = dof_handler.begin_active(),
-  //        endc = dof_handler.end();
-  //        for (; cell!=endc; ++cell)
-  //            if (cell->is_locally_owned())
-  //              {
-  //                  for (unsigned int v=0; v <
-  //                  GeometryInfo<dim>::vertices_per_cell; ++v)
-  //
-  //                  if     ((std::abs(cell->vertex(v)[0] - 0.5) <
-  //                  tol_boundary) &&
-  //                          (std::abs(cell->vertex(v)[1] - 0.5) <
-  //                          tol_boundary) && (std::abs(cell->vertex(v)[2]
-  //                          - 1.0) < tol_boundary))
-  //                       {
-  //                            constraints.add_line(cell->vertex_dof_index(v,
-  //                            0));
-  //                            constraints.add_line(cell->vertex_dof_index(v,
-  //                            1));
-  //                            constraints.add_line(cell->vertex_dof_index(v,
-  //                            2));
-  //                       }
-  //            else if     (/*(std::abs(cell->vertex(v)[0] - 0.0) <
-  //            tol_boundary) &&*/
-  //                         (std::abs(cell->vertex(v)[1] - 0.0) < tol_boundary)
-  //                         && (std::abs(cell->vertex(v)[2] - 0.0) <
-  //                         tol_boundary))
-  //                      {
-  //                         // constraints.add_line(cell->vertex_dof_index(v,
-  //                         0)); constraints.add_line(cell->vertex_dof_index(v,
-  //                         1));
-  //                         //constraints.add_line(cell->vertex_dof_index(v,
-  //                         2));
-  //                      }
-  //
-  //           else if      ((std::abs(cell->vertex(v)[0] - 0.0) < tol_boundary)
-  //           &&
-  //                         /*(std::abs(cell->vertex(v)[1] - 0.0) <
-  //                         tol_boundary) &&*/ (std::abs(cell->vertex(v)[2] -
-  //                         0.0) < tol_boundary))
-  //                      {
-  //                         constraints.add_line(cell->vertex_dof_index(v, 0));
-  //                        //constraints.add_line(cell->vertex_dof_index(v,
-  //                        1));
-  //                        //constraints.add_line(cell->vertex_dof_index(v,
-  //                        2));
-  //                     }
-  //           else if      ((std::abs(cell->vertex(v)[0] - 0.0) < tol_boundary)
-  //           &&
-  //                         (std::abs(cell->vertex(v)[1] - 1.0) < tol_boundary)
-  //                         && (std::abs(cell->vertex(v)[2] - 0.0) <
-  //                         tol_boundary))
-  //                     {
-  //                        constraints.add_line(cell->vertex_dof_index(v, 0));
-  //                         //constraints.add_line(cell->vertex_dof_index(v,
-  //                         1));
-  //                        //constraints.add_line(cell->vertex_dof_index(v,
-  //                        2));
-  //                     }
-  //              }
-
-  // Fixing external surfaces
-
-  {
-    const int boundary_id = 0;
-
-    if (apply_dirichlet_bc == true)
-      VectorTools::interpolate_boundary_values(
-          dof_handler, boundary_id, dealii::Functions::ZeroFunction<dim>(dim),
-          constraints, (fe.component_mask(x_displacement)));
-    else
-      VectorTools::interpolate_boundary_values(
-          dof_handler, boundary_id, dealii::Functions::ZeroFunction<dim>(dim),
-          constraints, (fe.component_mask(x_displacement)));
-  }
-  //
-  //                    {
-  //                        const int boundary_id = 1;
-  //
-  //                         if (apply_dirichlet_bc == true)
-  //                          VectorTools::interpolate_boundary_values(dof_handler,
-  //                                                                   boundary_id,
-  //                                                                      BoundaryDisplacement<dim>(0,
-  //                                                                      timestep),
-  //                                                                   constraints,
-  //                                                                   fe.component_mask(x_displacement));
-  //                        else
-  //                          VectorTools::interpolate_boundary_values(dof_handler,
-  //                                                                   boundary_id,
-  //                                                                   dealii::Functions::ZeroFunction<dim>(dim),
-  //                                                                   constraints,
-  //                                                                   fe.component_mask(x_displacement));
-  //                   }
-
-  //                    {
-  //                          const int boundary_id = 2;
-  //
-  //                     if (apply_dirichlet_bc == true)
-  //                       VectorTools::interpolate_boundary_values(dof_handler,
-  //                                                                boundary_id,
-  //                                                                dealii::Functions::ZeroFunction<dim>(dim),
-  //                                                               constraints,
-  //                                                                fe.component_mask(y_displacement));
-  //                     else
-  //                       VectorTools::interpolate_boundary_values(dof_handler,
-  //                                                                boundary_id,
-  //                                                                dealii::Functions::ZeroFunction<dim>(dim),
-  //                                                                constraints,
-  //                                                                fe.component_mask(y_displacement));
-  //                     }
-
-  //                    {
-  //                           const int boundary_id = 3;
-  //
-  //                      if (apply_dirichlet_bc == true)
-  //                        VectorTools::interpolate_boundary_values(dof_handler,
-  //                                                                 boundary_id,
-  //                                                               BoundaryDisplacement<dim>(1,
-  //                                                               timestep),
-  //                                                                constraints,
-  //                                                                 fe.component_mask(y_displacement));
-  //                      else
-  //                        VectorTools::interpolate_boundary_values(dof_handler,
-  //                                                                 boundary_id,
-  //                                                                 dealii::Functions::ZeroFunction<dim>(dim),
-  //                                                                 constraints,
-  //                                                                 fe.component_mask(y_displacement));
-  //                      }
-
-  {
-
-    const int boundary_id = 4;
-
-    if (apply_dirichlet_bc == true)
-      VectorTools::interpolate_boundary_values(
-          dof_handler, boundary_id, dealii::Functions::ZeroFunction<dim>(dim),
-          constraints,
-          fe.component_mask(x_displacement) |
-              fe.component_mask(y_displacement) |
-              fe.component_mask(z_displacement));
-    else
-      VectorTools::interpolate_boundary_values(
-          dof_handler, boundary_id, dealii::Functions::ZeroFunction<dim>(dim),
-          constraints,
-          fe.component_mask(x_displacement) |
-              fe.component_mask(y_displacement) |
-              fe.component_mask(z_displacement));
-  }
-  const int boundary_id = 5;
-
-  if (timestep < 5) {
-    VectorTools::interpolate_boundary_values(
-        dof_handler, boundary_id,
-        dealii::Functions::ConstantFunction<dim>(1e-4, dim), constraints,
-        fe.component_mask(z_displacement));
-  } else {
-    if (timestep % 2 == 0) {
-      if (apply_dirichlet_bc == true)
-        VectorTools::interpolate_boundary_values(
-            dof_handler, boundary_id, BoundaryDisplacement<dim>(2, timestep),
-            constraints, fe.component_mask(z_displacement));
-      else
-        VectorTools::interpolate_boundary_values(
-            dof_handler, boundary_id, dealii::Functions::ZeroFunction<dim>(dim),
-            constraints, fe.component_mask(z_displacement));
-    } else
-      VectorTools::interpolate_boundary_values(
-          dof_handler, boundary_id, dealii::Functions::ZeroFunction<dim>(dim),
-          constraints, fe.component_mask(z_displacement));
-  }
-
-  {
-
-    const int boundary_id = 5;
-
-    if (apply_dirichlet_bc == true)
-      VectorTools::interpolate_boundary_values(
-          dof_handler, boundary_id, dealii::Functions::ZeroFunction<dim>(dim),
-          constraints,
-          fe.component_mask(x_displacement) |
-              fe.component_mask(y_displacement));
-    else
-      VectorTools::interpolate_boundary_values(
-          dof_handler, boundary_id, dealii::Functions::ZeroFunction<dim>(dim),
-          constraints,
-          fe.component_mask(x_displacement) |
-              fe.component_mask(y_displacement));
-  }
-
-  // In the case of periodic conditions these lines shold be uncommented.
-
-  //{
-  //        DoFTools::make_periodicity_constraints(dof_handler,
-  //                                              /*b_id*/ 0,
-  //                                              /*b_id*/ 1,
-  //                                              /*direction*/ 0,
-  //                                              constraints);
-  //        DoFTools::make_periodicity_constraints(dof_handler,
-  //                                              /*b_id*/ 2,
-  //                                              /*b_id*/ 3,
-  //                                              /*direction*/ 1,
-  //                                                 constraints);
-  //       DoFTools::make_periodicity_constraints(dof_handler,
-  //                                               /*b_id*/ 4,
-  //                                               /*b_id*/ 5,
-  //                                               /*direction*/ 2,
-  //                                               constraints);
-  //      }
-  //     constraints.close();
-
-  //     // Applying boundary displacement when having periodic conditions
-  /*
-      {
-         IndexSet selected_dofs_x;
-         std::set< types::boundary_id > boundary_ids_x=
-    std::set<types::boundary_id>(); boundary_ids_x.insert(0);
-
-         DoFTools::extract_boundary_dofs(dof_handler,
-                                        fe.component_mask(x_displacement),
-                                             selected_dofs_x,
-                                             boundary_ids_x);
-         unsigned int nb_dofs_face_x = selected_dofs_x.n_elements();
-         IndexSet::ElementIterator dofs_x = selected_dofs_x.begin();
-
-         double relative_displacement_x;
-
-         if(timestep<80)
-         relative_displacement_x = 5e-4;
-         else if(timestep%100==0)
-         relative_displacement_x = 5e-4;
-         else
-         relative_displacement_x = 0.0;
-
-         for(unsigned int i = 0; i < nb_dofs_face_x; i++)
-         {
-          constraints.add_line (*dofs_x);
-           constraints.set_inhomogeneity(*dofs_x, (apply_dirichlet_bc ?
-    relative_displacement_x : 0.0)); dofs_x++;
-         }
-       }
-
-
-     {
-         IndexSet selected_dofs_y;
-         std::set< types::boundary_id > boundary_ids_y=
-    std::set<types::boundary_id>(); boundary_ids_y.insert(2);
-
-         DoFTools::extract_boundary_dofs(dof_handler,
-                                        fe.component_mask(y_displacement),
-                                           selected_dofs_y,
-                                           boundary_ids_y);
-         unsigned int nb_dofs_face_y = selected_dofs_y.n_elements();
-         IndexSet::ElementIterator dofs_y = selected_dofs_y.begin();
-
-         double relative_displacement_y = 0.0;
-
-         if(timestep<80)
-          relative_displacement_y = 5e-4;
-         else if(timestep%100==0)
-          relative_displacement_y = 5e-4;
-         else
-          relative_displacement_y = 0.0;
-
-
-         for(unsigned int i = 0; i < nb_dofs_face_y; i++)
-         {
-           constraints.add_line (*dofs_y);
-           constraints.set_inhomogeneity(*dofs_y,(apply_dirichlet_bc ?
-    relative_displacement_y : 0.0) ); dofs_y++;
-         }
-
-       }
-
-     {
-       IndexSet selected_dofs_z;
-       std::set< types::boundary_id > boundary_ids_z=
-    std::set<types::boundary_id>(); boundary_ids_z.insert(4);
-
-       DoFTools::extract_boundary_dofs(dof_handler,
-                                      fe.component_mask(z_displacement),
-                                           selected_dofs_z,
-                                           boundary_ids_z);
-       unsigned int nb_dofs_face_z = selected_dofs_z.n_elements();
-       IndexSet::ElementIterator dofs_z = selected_dofs_z.begin();
-
-       double relative_displacement_z;
-       relative_displacement_z = 0.0;
-
-       if(timestep<75)
-        relative_displacement_z = 10e-4;
-       else if(timestep%10==0)
-        relative_displacement_z = 10e-4;
-       else
-        relative_displacement_z = 0.0;
-
-
-       for(unsigned int i = 0; i < nb_dofs_face_z; i++)
-       {
-         constraints.add_line (*dofs_z);
-           constraints.set_inhomogeneity(*dofs_z,(apply_dirichlet_bc ?
-    relative_displacement_z : 0.0)); dofs_z++;
-       }
+  // Fixing origin point to prevent rigid body motion
+  const double tol_boundary = 1e-4;
+  typename DoFHandler<dim>::active_cell_iterator cell =
+                                                     dof_handler.begin_active(),
+                                                 endc = dof_handler.end();
+  for (; cell != endc; ++cell)
+    if (cell->is_locally_owned()) {
+      for (unsigned int v = 0; v < GeometryInfo<dim>::vertices_per_cell; ++v)
+        if ((std::abs(cell->vertex(v)[0] - 0.) < tol_boundary) &&
+            (std::abs(cell->vertex(v)[1] - 0.) < tol_boundary) &&
+            (std::abs(cell->vertex(v)[2] - 0.) < tol_boundary)) {
+          constraints.add_line(cell->vertex_dof_index(v, 0));
+          constraints.add_line(cell->vertex_dof_index(v, 1));
+          constraints.add_line(cell->vertex_dof_index(v, 2));
+        }
     }
-  */
+
+  // Apply periodic constraints
+  {
+    DoFTools::make_periodicity_constraints(dof_handler, 0, 1, 0, constraints);
+    // DoFTools::make_periodicity_constraints(dof_handler, 2, 3, 1,
+    // constraints); DoFTools::make_periodicity_constraints(dof_handler, 4, 5,
+    // 2, constraints);
+  }
+
+  // Apply displacement loading on periodic boundaries
+  {
+    IndexSet dofs_x0, dofs_x1;
+    std::set<types::boundary_id> bid_x0 = std::set<types::boundary_id>();
+    bid_x0.insert(0);
+    DoFTools::extract_boundary_dofs(
+        dof_handler, fe.component_mask(x_displacement), dofs_x0, bid_x0);
+    std::set<types::boundary_id> bid_x1 = std::set<types::boundary_id>();
+    bid_x1.insert(1);
+    DoFTools::extract_boundary_dofs(
+        dof_handler, fe.component_mask(x_displacement), dofs_x1, bid_x1);
+
+    unsigned int n_dofs_x0 = dofs_x0.n_elements();
+    IndexSet::ElementIterator it_x0 = dofs_x0.begin();
+    IndexSet::ElementIterator it_x1 = dofs_x1.begin();
+
+    double relative_displacement_x = 0.0;
+
+    if (timestep <= 24)
+      relative_displacement_x = 5e-4;
+    else if (timestep % 05 == 0)
+      relative_displacement_x = 1e-6;
+
+    for (unsigned int i = 0; i < n_dofs_x0; i++) {
+      constraints.add_line(*it_x0);
+      constraints.set_inhomogeneity(
+          *it_x0, (apply_dirichlet_bc ? relative_displacement_x : 0.0));
+      it_x0++;
+      constraints.add_line(*it_x1);
+      constraints.set_inhomogeneity(
+          *it_x1, (apply_dirichlet_bc ? -2 * relative_displacement_x : 0.0));
+      it_x1++;
+    }
+  }
+
   constraints.close();
 }
 
@@ -1560,6 +1302,7 @@ template <int dim> void Solid<dim>::solve_nonlinear_timestep() {
   tmp = solution;
   for (; newton_iteration < 6000; ++newton_iteration) {
     make_constraints(newton_iteration);
+
     assemble_system();
 
     if (newton_iteration == 0) {
@@ -1619,21 +1362,20 @@ template <int dim> void Solid<dim>::run() {
       vectorType tmp_solution_c1(locally_owned_dofs_c, mpi_communicator);
       vectorType tmp_solution_c2(locally_owned_dofs_c, mpi_communicator);
       vectorType tmp_solution_c3(locally_owned_dofs_c, mpi_communicator);
-      VectorTools::interpolate(dof_handler_c, InitialValues<dim>(1, 0),
-                               tmp_solution_c1); // initial c
-      VectorTools::interpolate(dof_handler_c, InitialValues<dim>(2, 0),
-                               tmp_solution_c2); // initial c
-      VectorTools::interpolate(dof_handler_c, InitialValues<dim>(3, 0),
-                               tmp_solution_c3); // initial c
+      // VectorTools::interpolate(dof_handler_c, InitialValues<dim>(1, 0),
+      //                          tmp_solution_c1); // initial c
+      // VectorTools::interpolate(dof_handler_c, InitialValues<dim>(2, 0),
+      //                          tmp_solution_c2); // initial c
+      // VectorTools::interpolate(dof_handler_c, InitialValues<dim>(3, 0),
+      //                          tmp_solution_c3); // initial c
       solution_c1 = tmp_solution_c1;
       solution_c2 = tmp_solution_c2;
       solution_c3 = tmp_solution_c3;
 
       update_qph_incremental();
 
-      // Skip initial solve at timestep=0 where all concentrations are zero
-      // This creates a zero RHS and singular system
-      // solve_nonlinear_timestep();
+      // Initial solve to establish equilibrium
+      solve_nonlinear_timestep();
       // output_results();
       // output_resultant_stress();
     }

@@ -75,47 +75,77 @@ void Material_Constitutive<dim>::update_material_data(const Tensor<2, dim> &F,
 
   kd1 = 0.0269978 - A0;
 
-  // C_A and C_M1 are already initialized in constructor from parameters
-  // Need to ensure they are sized to 9 for the calculations below
-  if (C_A.size() != 9)
+  kd1 = 0.0269978 - A0;
+
+  // C_A and C_M1 are initialized in constructor from parameters (size 5).
+  // We need to map them to 9-element orthotropic representation.
+  // CRITICAL FIX: reinit(9) clears the vector, so we must extract BEFORE
+  // resizing.
+
+  double C11_A, C12_A, C13_A, C33_A, C44_A;
+
+  if (C_A.size() == 5) {
+    C11_A = C_A[0];
+    C12_A = C_A[1];
+    C13_A = C_A[2];
+    C33_A = C_A[3];
+    C44_A = C_A[4];
+
     C_A.reinit(9);
-  if (C_M1.size() != 9)
+    C_A[0] = C11_A;               // C_A_11
+    C_A[1] = C11_A;               // C_A_22
+    C_A[2] = C33_A;               // C_A_33
+    C_A[3] = C44_A;               // C_A_44
+    C_A[4] = C44_A;               // C_A_55
+    C_A[5] = (C11_A - C12_A) / 2; // C_A_66
+    C_A[6] = C12_A;               // C_A_12
+    C_A[7] = C13_A;               // C_A_13
+    C_A[8] = C13_A;               // C_A_23
+  } else if (C_A.size() == 9) {
+    // Already mapped
+    C11_A = C_A[0];
+    C12_A = C_A[6];
+    C13_A = C_A[7];
+    C33_A = C_A[2];
+    C44_A = C_A[3];
+  } else {
+    // Fallback or error
+    C11_A = C12_A = C13_A = C33_A = C44_A = 0.0;
+    if (C_A.size() != 9)
+      C_A.reinit(9);
+  }
+
+  double C11_M, C12_M, C13_M, C33_M, C44_M;
+
+  if (C_M1.size() == 5) {
+    C11_M = C_M1[0];
+    C12_M = C_M1[1];
+    C13_M = C_M1[2];
+    C33_M = C_M1[3];
+    C44_M = C_M1[4];
+
     C_M1.reinit(9);
-
-  // Map 5-element input to 9-element representation for orthotropic
-  // calculations Extract the 5 independent constants from the input
-  double C11_A = (C_A.size() >= 1) ? C_A[0] : 0.0;
-  double C12_A = (C_A.size() >= 2) ? C_A[1] : 0.0;
-  double C13_A = (C_A.size() >= 3) ? C_A[2] : 0.0;
-  double C33_A = (C_A.size() >= 4) ? C_A[3] : 0.0;
-  double C44_A = (C_A.size() >= 5) ? C_A[4] : 0.0;
-
-  // Populate the 9-element vector
-  C_A[0] = C11_A;               // C_A_11
-  C_A[1] = C11_A;               // C_A_22
-  C_A[2] = C33_A;               // C_A_33
-  C_A[3] = C44_A;               // C_A_44
-  C_A[4] = C44_A;               // C_A_55
-  C_A[5] = (C11_A - C12_A) / 2; // C_A_66
-  C_A[6] = C12_A;               // C_A_12
-  C_A[7] = C13_A;               // C_A_13
-  C_A[8] = C13_A;               // C_A_23
-
-  double C11_M = (C_M1.size() >= 1) ? C_M1[0] : 0.0;
-  double C12_M = (C_M1.size() >= 2) ? C_M1[1] : 0.0;
-  double C13_M = (C_M1.size() >= 3) ? C_M1[2] : 0.0;
-  double C33_M = (C_M1.size() >= 4) ? C_M1[3] : 0.0;
-  double C44_M = (C_M1.size() >= 5) ? C_M1[4] : 0.0;
-
-  C_M1[0] = C11_M;               // C_M1_11
-  C_M1[1] = C11_M;               // C_M1_22
-  C_M1[2] = C33_M;               // C_M1_33
-  C_M1[3] = C44_M;               // C_M1_44
-  C_M1[4] = C44_M;               // C_M1_55
-  C_M1[5] = (C11_M - C12_M) / 2; // C_M1_66
-  C_M1[6] = C12_M;               // C_M1_12
-  C_M1[7] = C13_M;               // C_M1_13
-  C_M1[8] = C13_M;               // C_M1_23
+    C_M1[0] = C11_M;               // C_M1_11
+    C_M1[1] = C11_M;               // C_M1_22
+    C_M1[2] = C33_M;               // C_M1_33
+    C_M1[3] = C44_M;               // C_M1_44
+    C_M1[4] = C44_M;               // C_M1_55
+    C_M1[5] = (C11_M - C12_M) / 2; // C_M1_66
+    C_M1[6] = C12_M;               // C_M1_12
+    C_M1[7] = C13_M;               // C_M1_13
+    C_M1[8] = C13_M;               // C_M1_23
+  } else if (C_M1.size() == 9) {
+    // Already mapped
+    C11_M = C_M1[0];
+    C12_M = C_M1[6];
+    C13_M = C_M1[7];
+    C33_M = C_M1[2];
+    C44_M = C_M1[3];
+  } else {
+    C11_M = C12_M = C13_M = C33_M = C44_M = 0.0;
+    if (C_M1.size() != 9)
+      C_M1.reinit(9);
+  }
 
   kd1 = 0.0269978 - A0;
 

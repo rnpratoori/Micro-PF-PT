@@ -11,3 +11,14 @@ output/
 
 # Cache
 .cache/
+
+# Logs
+*.log
+
+# Reference version
+# Reference version
+full/
+
+# Other artifacts
+TargetDirectories.txt
+src/solid_restart_draft.C

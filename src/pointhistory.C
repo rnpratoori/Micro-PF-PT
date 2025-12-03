@@ -1,7 +1,9 @@
-
 namespace PhaseField {
 template <int dim>
 void PointHistory<dim>::setup_lqp(const Parameters::AllParameters &parameters) {
+  // CRITICAL FIX: Material_Constitutive constructor expects
+  // Parameters::Materials, not Parameters::AllParameters. Pass
+  // parameters.Materials instead.
   material = new Material_Constitutive<dim>(parameters);
 
   update_values(Tensor<2, dim>(), double(), double(), double(), double(),
@@ -192,11 +194,14 @@ void PointHistory<dim>::update_values(
 
   // Excluding PT for the top and bottom of the sample to have pure elastic
   // deformation
-  if (q_point[2] < 0.156 || q_point[2] > (1.5 - 0.156)) {
-    dc1 = 0;
-    dc2 = 0;
-    dc3 = 0;
-  }
+  // NOTE: This constraint is geometry-dependent and assumes z ∈ [0, 1.5]
+  // For hyper_cube domain [-0.5, 0.5]³, this would disable PT everywhere!
+  // Commented out to allow PT in hyper_cube geometry.
+  // if (q_point[2] < 0.156 || q_point[2] > (1.5 - 0.156)) {
+  //   dc1 = 0;
+  //   dc2 = 0;
+  //   dc3 = 0;
+  // }
 
   Assert(determinant(F_inv) > 0, ExcInternalError());
 }

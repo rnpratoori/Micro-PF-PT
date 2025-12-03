@@ -21,7 +21,7 @@ end
 
 subsection Geometry
   # Global refinement level
-  set Global refinement   = 5
+  set Global refinement   = 4
 
   # Global grid scaling factor
   set Grid scale          = 1
