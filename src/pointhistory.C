@@ -2,14 +2,7 @@
 namespace PhaseField {
 template <int dim>
 void PointHistory<dim>::setup_lqp(const Parameters::AllParameters &parameters) {
-  material = new Material_Constitutive<dim>(
-      parameters.C_A_11, parameters.C_A_12, parameters.C_A_13,
-      parameters.C_A_33, parameters.C_A_44, parameters.C_M_11,
-      parameters.C_M_12, parameters.C_M_13, parameters.C_M_33,
-      parameters.C_M_44, parameters.lambdaA, parameters.muA, parameters.lambdaM,
-      parameters.muM, parameters.A, parameters.delta_psi);
-  // parameters.a_alpha, parameters.c_alpha, parameters.a_omega,
-  // parameters.c_omega);
+  material = new Material_Constitutive<dim>(parameters);
 
   update_values(Tensor<2, dim>(), double(), double(), double(), double(),
                 double(), Point<dim>(), double(), double(), double(), double());
@@ -122,93 +115,71 @@ void PointHistory<dim>::update_values(
   if ((X23 > 0 && c2 < 1 && c3 > 0) || (X23 < 0 && c2 > 0 && c3 < 1))
     dc23 = dt * landa * X23;
 
-  if (dc10 > 0) {
+  const double dc10_old = dc10;
+  const double dc20_old = dc20;
+  const double dc30_old = dc30;
+  const double dc12_old = dc12;
+  const double dc13_old = dc13;
+  const double dc23_old = dc23;
 
-    if (c0 - dc10 < 0 || c1 + dc10 > 1)
-      dc10 = std::min(1 - c1, c0);
-  } else if (dc10 < 0) {
-    // std::cout <<"dc10"<< dc10 << '\n';
-    // MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+  const double softFactor = 1.0;
 
-    if (c1 - abs(dc10) < 0 || c0 + abs(dc10) > 1)
-      dc10 = -std::min(c1, 1 - c0);
+  // Constraints on change in concentration
+  if ((c0 - dc10 - dc20 - dc30) < -1e-5) {
+    dc10 = softFactor * dc10 * c0 /
+           (std::abs(dc10_old) + std::abs(dc20_old) + std::abs(dc30_old));
+    dc20 = softFactor * dc20 * c0 /
+           (std::abs(dc10_old) + std::abs(dc20_old) + std::abs(dc30_old));
+    dc30 = softFactor * dc30 * c0 /
+           (std::abs(dc10_old) + std::abs(dc20_old) + std::abs(dc30_old));
   }
 
-  if (dc20 > 0) {
-
-    if (c0 - dc20 < 0 || c2 + dc20 > 1)
-      dc20 = std::min(1 - c2, c0);
-  } else if (dc20 < 0) {
-    // std::cout <<"dc20"<< dc20 << '\n';
-    // MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-
-    if (c2 - abs(dc20) < 0 || c0 + abs(dc20) > 1)
-      dc20 = -std::min(c2, 1 - c0);
+  if ((c1 + dc10 + dc12 + dc13) < 0) {
+    dc10 = softFactor * dc10 * c1 /
+           (std::abs(dc10_old) + std::abs(dc12_old) + std::abs(dc13_old));
+    dc12 = softFactor * dc12 * c1 /
+           (std::abs(dc10_old) + std::abs(dc12_old) + std::abs(dc13_old));
+    dc13 = softFactor * dc13 * c1 /
+           (std::abs(dc10_old) + std::abs(dc12_old) + std::abs(dc13_old));
+  } else if ((c1 + dc10 + dc12 + dc13) > 1) {
+    dc10 = softFactor * dc10 * (1 - c1) /
+           (std::abs(dc10_old) + std::abs(dc12_old) + std::abs(dc13_old));
+    dc12 = softFactor * dc12 * (1 - c1) /
+           (std::abs(dc10_old) + std::abs(dc12_old) + std::abs(dc13_old));
+    dc13 = softFactor * dc13 * (1 - c1) /
+           (std::abs(dc10_old) + std::abs(dc12_old) + std::abs(dc13_old));
   }
 
-  if (dc30 > 0) {
-
-    if (c0 - dc30 < 0 || c3 + dc30 > 1)
-      dc30 = std::min(1 - c3, c0);
-  } else if (dc30 < 0) {
-    // std::cout <<"dc30"<< dc30 << '\n';
-    // MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-
-    if (c3 - abs(dc30) < 0 || c0 + abs(dc30) > 1)
-      dc30 = -std::min(c3, 1 - c0);
+  if ((c2 + dc20 - dc12 + dc23) < 0) {
+    dc20 = softFactor * dc20 * c2 /
+           (std::abs(dc20_old) + std::abs(dc12_old) + std::abs(dc23_old));
+    dc12 = softFactor * dc12 * c2 /
+           (std::abs(dc20_old) + std::abs(dc12_old) + std::abs(dc23_old));
+    dc23 = softFactor * dc23 * c2 /
+           (std::abs(dc20_old) + std::abs(dc12_old) + std::abs(dc23_old));
+  } else if ((c2 + dc20 - dc12 + dc23) > 1) {
+    dc20 = softFactor * dc20 * (1 - c2) /
+           (std::abs(dc20_old) + std::abs(dc12_old) + std::abs(dc23_old));
+    dc12 = softFactor * dc12 * (1 - c2) /
+           (std::abs(dc20_old) + std::abs(dc12_old) + std::abs(dc23_old));
+    dc23 = softFactor * dc23 * (1 - c2) /
+           (std::abs(dc20_old) + std::abs(dc12_old) + std::abs(dc23_old));
   }
 
-  if (dc12 > 0) {
-    if (c2 - dc12 < 0 || c1 + dc12 > 1)
-      dc12 = std::min(1 - c1, c2);
-  } else if (dc12 < 0) {
-    // std::cout <<"dc12"<< dc12 << '\n';
-    // MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-
-    if (c1 - abs(dc12) < 0 || c2 + abs(dc12) > 1)
-      dc12 = -std::min(c1, 1 - c2);
-  }
-
-  if (dc13 > 0) {
-    if (c3 - dc13 < 0 || c1 + dc13 > 1)
-      dc13 = std::min(1 - c1, c3);
-  } else if (dc13 < 0) {
-    // std::cout <<"dc13"<< dc13 << '\n';
-    // MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-
-    if (c1 - abs(dc13) < 0 || c3 + abs(dc13) > 1)
-      dc13 = -std::min(c1, 1 - c3);
-  }
-
-  if (dc23 > 0) {
-    if (c3 - dc23 < 0 || c2 + dc23 > 1)
-      dc23 = std::min(1 - c2, c3);
-  } else if (dc23 < 0) {
-    // std::cout <<"dc23"<< dc23 << '\n';
-    // MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-
-    if (c2 - abs(dc23) < 0 || c3 + abs(dc23) > 1)
-      dc23 = -std::min(c2, 1 - c3);
-  }
-
-  const double dci0 = dc10 + dc20 + dc30;
-
-  if (dci0 > 0) {
-    if (c0 - dci0 < 0) {
-      dc10 = 0;
-      dc20 = 0;
-      dc30 = 0;
-    }
-  } else if (dci0 < 0) {
-    // std::cout <<"dc10"<< dc10 << '\n';
-    // std::cout <<"dc20"<< dc20 << '\n';
-    // std::cout <<"dc30"<< dc30 << '\n';
-    // MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-    if (c0 + abs(dci0) > 1) {
-      dc10 = 0;
-      dc20 = 0;
-      dc30 = 0;
-    }
+  if ((c3 + dc30 - dc13 - dc23) < 0) {
+    dc30 = softFactor * dc30 * c3 /
+           (std::abs(dc30_old) + std::abs(dc13_old) + std::abs(dc23_old));
+    dc13 = softFactor * dc13 * c3 /
+           (std::abs(dc30_old) + std::abs(dc13_old) + std::abs(dc23_old));
+    dc23 = softFactor * dc23 * c3 /
+           (std::abs(dc30_old) + std::abs(dc13_old) + std::abs(dc23_old));
+  } else if ((c3 + dc30 - dc13 - dc23) > 1) {
+    dc30 = softFactor * dc30 * (1 - c3) /
+           (std::abs(dc30_old) + std::abs(dc13_old) + std::abs(dc23_old));
+    dc13 = softFactor * dc13 * (1 - c3) /
+           (std::abs(dc30_old) + std::abs(dc13_old) + std::abs(dc23_old));
+    dc23 = softFactor * dc23 * (1 - c3) /
+           (std::abs(dc30_old) + std::abs(dc13_old) + std::abs(dc23_old));
   }
 
   dc21 = -dc12;

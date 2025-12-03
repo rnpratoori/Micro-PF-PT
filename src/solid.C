@@ -20,9 +20,9 @@ Solid<dim>::Solid(const std::string &input_file)
       qf_cell(parameters.quad_order), qf_face(parameters.quad_order),
       n_q_points(qf_cell.size()), n_q_points_f(qf_face.size()),
 
-      degree_c(parameters.poly_degree), fe_c(parameters.poly_degree),
+      degree_c(parameters.poly_degree_c), fe_c(parameters.poly_degree_c),
       dof_handler_c(triangulation), dofs_per_cell_c(fe_c.dofs_per_cell),
-      qf_cell_c(parameters.quad_order), n_q_points_c(qf_cell_c.size()),
+      qf_cell_c(parameters.quad_order_c), n_q_points_c(qf_cell_c.size()),
 
       history_dof_handler(triangulation), history_fe(parameters.poly_degree),
       apply_strain(false), load_step(1), load(0.0), output_directory("output"),
@@ -361,10 +361,14 @@ template <int dim> void Solid<dim>::make_constraints(const int &it_nr) {
               fe.component_mask(y_displacement) |
               fe.component_mask(z_displacement));
   }
-  {
+  const int boundary_id = 5;
 
-    const int boundary_id = 5;
-
+  if (timestep < 5) {
+    VectorTools::interpolate_boundary_values(
+        dof_handler, boundary_id,
+        dealii::Functions::ConstantFunction<dim>(1e-4, dim), constraints,
+        fe.component_mask(z_displacement));
+  } else {
     if (timestep % 2 == 0) {
       if (apply_dirichlet_bc == true)
         VectorTools::interpolate_boundary_values(
@@ -848,8 +852,9 @@ template <int dim> void Solid<dim>::update_qph_incremental() {
             solution_grads_values[q_point], solution_c1_values[q_point],
             solution_c2_values[q_point], solution_c3_values[q_point],
             parameters.delta_t, parameters.L,
-            fe_values.quadrature_point(q_point), parameters.a_alpha,
-            parameters.c_alpha, parameters.a_omega, parameters.c_omega);
+            fe_values.quadrature_point(q_point), parameters.lattice_param[0],
+            parameters.lattice_param[1], parameters.lattice_param[2],
+            parameters.lattice_param[3]);
       }
     }
 }
@@ -1599,28 +1604,40 @@ template <int dim> void Solid<dim>::solve_nonlinear_timestep() {
 
 // run
 template <int dim> void Solid<dim>::run() {
-  make_grid();    // generates the geometry and mesh
-  system_setup(); // sets up the system matrices and RHS
+  if (parameters.restart) {
+    load_checkpoint();
+    // After loading, we might need to rebuild matrices if they weren't saved
+    // system_setup(); // Be careful if this resets DoFs
+  } else {
+    if (parameters.restart) {
+      load_checkpoint();
+    } else {
+      make_grid();    // generates the geometry and mesh
+      system_setup(); // sets up the system matrices and RHS
 
-  // Applying initial condition for volume fraction c
-  vectorType tmp_solution_c1(locally_owned_dofs_c, mpi_communicator);
-  vectorType tmp_solution_c2(locally_owned_dofs_c, mpi_communicator);
-  vectorType tmp_solution_c3(locally_owned_dofs_c, mpi_communicator);
-  VectorTools::interpolate(dof_handler_c, InitialValues<dim>(1, 0),
-                           tmp_solution_c1); // initial c
-  VectorTools::interpolate(dof_handler_c, InitialValues<dim>(2, 0),
-                           tmp_solution_c2); // initial c
-  VectorTools::interpolate(dof_handler_c, InitialValues<dim>(3, 0),
-                           tmp_solution_c3); // initial c
-  solution_c1 = tmp_solution_c1;
-  solution_c2 = tmp_solution_c2;
-  solution_c3 = tmp_solution_c3;
+      // Applying initial condition for volume fraction c
+      vectorType tmp_solution_c1(locally_owned_dofs_c, mpi_communicator);
+      vectorType tmp_solution_c2(locally_owned_dofs_c, mpi_communicator);
+      vectorType tmp_solution_c3(locally_owned_dofs_c, mpi_communicator);
+      VectorTools::interpolate(dof_handler_c, InitialValues<dim>(1, 0),
+                               tmp_solution_c1); // initial c
+      VectorTools::interpolate(dof_handler_c, InitialValues<dim>(2, 0),
+                               tmp_solution_c2); // initial c
+      VectorTools::interpolate(dof_handler_c, InitialValues<dim>(3, 0),
+                               tmp_solution_c3); // initial c
+      solution_c1 = tmp_solution_c1;
+      solution_c2 = tmp_solution_c2;
+      solution_c3 = tmp_solution_c3;
 
-  update_qph_incremental();
+      update_qph_incremental();
 
-  solve_nonlinear_timestep();
-  output_results();
-  output_resultant_stress();
+      // Skip initial solve at timestep=0 where all concentrations are zero
+      // This creates a zero RHS and singular system
+      // solve_nonlinear_timestep();
+      // output_results();
+      // output_resultant_stress();
+    }
+  }
 
   time.increment();
 
@@ -1651,5 +1668,133 @@ template <int dim> void Solid<dim>::run() {
 
     time.increment();
   }
+}
+// save_checkpoint
+template <int dim> void Solid<dim>::save_checkpoint() {
+  pcout << "Saving checkpoint..." << std::endl;
+
+  if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0) {
+    static bool previous_snapshot_exists = (parameters.restart == true);
+
+    if (previous_snapshot_exists == true) {
+      // Backup old restart files before overwriting
+      std::rename((output_directory + "/restart.mesh").c_str(),
+                  (output_directory + "/restart.mesh.old").c_str());
+      std::rename((output_directory + "/restart.mesh.info").c_str(),
+                  (output_directory + "/restart.mesh.info.old").c_str());
+      std::rename((output_directory + "/restart.time.info").c_str(),
+                  (output_directory + "/restart.time.info.old").c_str());
+    }
+    previous_snapshot_exists = true;
+  }
+
+  // Save triangulation and solution vectors using SolutionTransfer
+  parallel::distributed::SolutionTransfer<dim, vectorType> solution_transfer(
+      dof_handler);
+  parallel::distributed::SolutionTransfer<dim, vectorType> solution_transfer_c(
+      dof_handler_c);
+
+  std::vector<const vectorType *> displacement_transfer;
+  std::vector<const vectorType *> volFraction_transfer;
+
+  displacement_transfer.push_back(&solution);
+  volFraction_transfer.push_back(&solution_c1);
+  volFraction_transfer.push_back(&solution_c2);
+  volFraction_transfer.push_back(&solution_c3);
+
+  solution_transfer.prepare_for_serialization(displacement_transfer);
+  solution_transfer_c.prepare_for_serialization(volFraction_transfer);
+
+  triangulation.save(output_directory + "/restart.mesh");
+
+  if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0) {
+    std::ofstream time_info_file;
+    time_info_file.open(output_directory + "/restart.time.info");
+    time_info_file << time.get_timestep() << " (currentIncrement)\n";
+    time_info_file << time.current() << " (currentTime)\n";
+    time_info_file.close();
+  }
+}
+
+template <int dim> void Solid<dim>::load_checkpoint() {
+  pcout << "Loading checkpoint..." << std::endl;
+
+  // First load the triangulation
+  try {
+    triangulation.load(output_directory + "/restart.mesh");
+  } catch (...) {
+    pcout << "Failed to load triangulation from checkpoint" << std::endl;
+    throw;
+  }
+
+  // Setup the system after loading triangulation
+  system_setup();
+
+  // Load solution vectors
+  pcout << "Loading solution..." << std::endl;
+
+  std::vector<vectorType *> displacement_transfer(1);
+  std::vector<vectorType *> volFraction_transfer(3);
+
+  parallel::distributed::SolutionTransfer<dim, vectorType> solution_transfer(
+      dof_handler);
+  parallel::distributed::SolutionTransfer<dim, vectorType> solution_transfer_c(
+      dof_handler_c);
+
+  vectorType displacement_system(system_rhs);
+  vectorType c1_system(system_rhs_c1);
+  vectorType c2_system(system_rhs_c2);
+  vectorType c3_system(system_rhs_c3);
+
+  displacement_transfer[0] = &displacement_system;
+  volFraction_transfer[0] = &c1_system;
+  volFraction_transfer[1] = &c2_system;
+  volFraction_transfer[2] = &c3_system;
+
+  solution_transfer.deserialize(displacement_transfer);
+  solution_transfer_c.deserialize(volFraction_transfer);
+
+  solution = displacement_system;
+  solution_c1 = c1_system;
+  solution_c2 = c2_system;
+  solution_c3 = c3_system;
+
+  // Load time information
+  load_time();
+
+  pcout << "Checkpoint loaded successfully" << std::endl;
+}
+
+template <int dim> void Solid<dim>::load_time() {
+  pcout << "Loading time data..." << std::endl;
+
+  std::ifstream time_info_file;
+  time_info_file.open(output_directory + "/restart.time.info");
+
+  if (!time_info_file.is_open()) {
+    pcout << "Warning: could not open time info file" << std::endl;
+    return;
+  }
+
+  std::string line;
+
+  // Read timestep (first line)
+  std::getline(time_info_file, line);
+  line.erase(line.end() - 19, line.end()); // Remove " (currentIncrement)"
+  unsigned int checkpoint_timestep = Utilities::string_to_int(line);
+
+  // Read current time (second line)
+  std::getline(time_info_file, line);
+  line.erase(line.end() - 14, line.end()); // Remove " (currentTime)"
+  double checkpoint_time = Utilities::string_to_double(line);
+
+  time_info_file.close();
+
+  // Set the time state
+  time.set_timestep(checkpoint_timestep);
+  time.set_current(checkpoint_time);
+
+  pcout << "Loaded time: " << checkpoint_time
+        << ", timestep: " << checkpoint_timestep << std::endl;
 }
 } // namespace PhaseField

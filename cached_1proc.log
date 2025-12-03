@@ -1,0 +1,20 @@
+5 -  rhs_norm : 2.89893e-05    Number of CG iterations: 21
+6 -  rhs_norm : 1.28189e-05    Number of CG iterations: 21
+CONVERGED! 
+
+
++---------------------------------------------+------------+------------+
+| Total wallclock time elapsed since start    |      8.69s |            |
+|                                             |            |            |
+| Section                         | no. calls |  wall time | % of total |
++---------------------------------+-----------+------------+------------+
+| Assemble System                 |        27 |       2.8s |        32% |
+| Grid Generation                 |         1 |    0.0171s |       0.2% |
+| Output Results                  |         3 |    0.0845s |      0.97% |
+| Solve Linear System             |        27 |      1.75s |        20% |
+| Solve Nonlinear Timestep        |         3 |      6.26s |        72% |
+| Solve Phase Field               |         2 |      4.46s |        51% |
+| System Setup                    |         1 |     0.169s |       1.9% |
+| Update QPH                      |        30 |      4.03s |        46% |
++---------------------------------+-----------+------------+------------+
+

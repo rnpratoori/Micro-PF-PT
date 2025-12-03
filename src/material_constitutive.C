@@ -2,33 +2,37 @@
 namespace PhaseField {
 template <int dim>
 Material_Constitutive<dim>::Material_Constitutive(
-    const double C_A_11, const double C_A_12, const double C_A_13,
-    const double C_A_33, const double C_A_44, const double C_M_11,
-    const double C_M_12, const double C_M_13, const double C_M_33,
-    const double C_M_44, const double lambda_A_iso, const double mu_A_iso,
-    const double lambda_M_iso, const double mu_M_iso, const double A,
-    const double delta_psi)
-    : det_F(1.0), Fe(Tensor<2, dim>()), Fe_M2(Tensor<2, dim>()),
-      Fe_M3(Tensor<2, dim>()), ge(StandardTensors<dim>::I),
-      ge_M2(StandardTensors<dim>::I), ge_M3(StandardTensors<dim>::I),
-      Be(SymmetricTensor<2, dim>()), I1(0.0), Ge(StandardTensors<dim>::I),
-      Ee(Tensor<2, dim>()), Ee_M2(Tensor<2, dim>()), Ee_M3(Tensor<2, dim>()),
-      FeEe(Tensor<2, dim>()), FeEe_M2(Tensor<2, dim>()),
-      FeEe_M3(Tensor<2, dim>()), EeEe(Tensor<2, dim>()),
-      Rot_mat_2(Tensor<2, dim>()), C_A_11(C_A_11), C_A_12(C_A_12),
-      C_A_13(C_A_13), C_A_33(C_A_33), C_A_44(C_A_44), C_M_11(C_M_11),
-      C_M_12(C_M_12), C_M_13(C_M_13), C_M_33(C_M_33), C_M_44(C_M_44),
-      lambda_A_iso(lambda_A_iso), mu_A_iso(mu_A_iso),
-      lambda_M_iso(lambda_M_iso), mu_M_iso(mu_M_iso), C_A(Vector<double>(9)),
-      C_M1(Vector<double>(9)), C_M2(Vector<double>(9)), C_M3(Vector<double>(9)),
-      lambda_A(Vector<double>(3)), lambda_M1(Vector<double>(3)),
-      lambda_M2(Vector<double>(3)), lambda_M3(Vector<double>(3)),
-      lambda(Vector<double>(3)), mu_A(Vector<double>(3)),
-      mu_M1(Vector<double>(3)), mu_M2(Vector<double>(3)),
-      mu_M3(Vector<double>(3)), mu(Vector<double>(3)), nu_A(Vector<double>(3)),
-      nu_M1(Vector<double>(3)), nu_M2(Vector<double>(3)),
-      nu_M3(Vector<double>(3)), nu(Vector<double>(3)), A0(A),
-      delta_psi0(delta_psi), tensors_initialized(false) {}
+    const Parameters::Materials &parameters)
+    : tensors_initialized(false) {
+
+  // Initialize C_A and C_M from parameters
+  C_A.reinit(parameters.C_A_in.size());
+  for (unsigned int i = 0; i < parameters.C_A_in.size(); ++i)
+    C_A[i] = parameters.C_A_in[i];
+
+  C_M1.reinit(parameters.C_M_in.size());
+  for (unsigned int i = 0; i < parameters.C_M_in.size(); ++i)
+    C_M1[i] = parameters.C_M_in[i];
+
+  // Initialize Material_Constitutive members from parameters
+  this->A0 = parameters.A;
+  this->delta_psi0 = parameters.delta_psi;
+  this->ki00 = parameters.k;
+
+  // Initialize lambda/mu/nu vectors
+  lambda_A.reinit(3);
+  mu_A.reinit(3);
+  nu_A.reinit(3);
+  lambda_M1.reinit(3);
+  mu_M1.reinit(3);
+  nu_M1.reinit(3);
+  lambda_M2.reinit(3);
+  mu_M2.reinit(3);
+  nu_M2.reinit(3);
+  lambda_M3.reinit(3);
+  mu_M3.reinit(3);
+  nu_M3.reinit(3);
+}
 
 template <int dim> Material_Constitutive<dim>::~Material_Constitutive() {}
 
@@ -71,56 +75,187 @@ void Material_Constitutive<dim>::update_material_data(const Tensor<2, dim> &F,
 
   kd1 = 0.0269978 - A0;
 
-  // Elstic constants for orthotropic material
-  C_A[0] = C_A_11;                // C_A_11
-  C_A[1] = C_A_11;                // C_A_22
-  C_A[2] = C_A_33;                // C_A_33
-  C_A[3] = C_A_44;                // C_A_44
-  C_A[4] = C_A_44;                // C_A_55
-  C_A[5] = (C_A_11 - C_A_12) / 2; // C_A_66
-  C_A[6] = C_A_12;                // C_A_12
-  C_A[7] = C_A_13;                // C_A_13
-  C_A[8] = C_A_13;                // C_A_23
+  // C_A and C_M1 are already initialized in constructor from parameters
+  // Need to ensure they are sized to 9 for the calculations below
+  if (C_A.size() != 9)
+    C_A.reinit(9);
+  if (C_M1.size() != 9)
+    C_M1.reinit(9);
 
-  C_M1[0] = C_M_11;                // C_M1_11
-  C_M1[1] = C_M_11;                // C_M1_22
-  C_M1[2] = C_M_33;                // C_M1_33
-  C_M1[3] = C_M_44;                // C_M1_44
-  C_M1[4] = C_M_44;                // C_M1_55
-  C_M1[5] = (C_M_11 - C_M_12) / 2; // C_M1_66
-  C_M1[6] = C_M_12;                // C_M1_12
-  C_M1[7] = C_M_13;                // C_M1_13
-  C_M1[8] = C_M_13;                // C_M1_23
+  // Map 5-element input to 9-element representation for orthotropic
+  // calculations Extract the 5 independent constants from the input
+  double C11_A = (C_A.size() >= 1) ? C_A[0] : 0.0;
+  double C12_A = (C_A.size() >= 2) ? C_A[1] : 0.0;
+  double C13_A = (C_A.size() >= 3) ? C_A[2] : 0.0;
+  double C33_A = (C_A.size() >= 4) ? C_A[3] : 0.0;
+  double C44_A = (C_A.size() >= 5) ? C_A[4] : 0.0;
 
-  lambda_A[0] = C_A[0] + C_A[8] + 2 * C_A[3] -
-                (C_A[6] + C_A[7] + 2 * C_A[4] + 2 * C_A[5]);
-  lambda_A[1] = C_A[1] + C_A[7] + 2 * C_A[4] -
-                (C_A[6] + C_A[8] + 2 * C_A[3] + 2 * C_A[5]);
-  lambda_A[2] = C_A[2] + C_A[6] + 2 * C_A[5] -
-                (C_A[7] + C_A[8] + 2 * C_A[3] + 2 * C_A[4]);
+  // Populate the 9-element vector
+  C_A[0] = C11_A;               // C_A_11
+  C_A[1] = C11_A;               // C_A_22
+  C_A[2] = C33_A;               // C_A_33
+  C_A[3] = C44_A;               // C_A_44
+  C_A[4] = C44_A;               // C_A_55
+  C_A[5] = (C11_A - C12_A) / 2; // C_A_66
+  C_A[6] = C12_A;               // C_A_12
+  C_A[7] = C13_A;               // C_A_13
+  C_A[8] = C13_A;               // C_A_23
 
-  mu_A[0] = 0.5 * (C_A[6] + C_A[7] - C_A[8]);
-  mu_A[1] = 0.5 * (C_A[6] + C_A[8] - C_A[7]);
-  mu_A[2] = 0.5 * (C_A[7] + C_A[8] - C_A[6]);
+  double C11_M = (C_M1.size() >= 1) ? C_M1[0] : 0.0;
+  double C12_M = (C_M1.size() >= 2) ? C_M1[1] : 0.0;
+  double C13_M = (C_M1.size() >= 3) ? C_M1[2] : 0.0;
+  double C33_M = (C_M1.size() >= 4) ? C_M1[3] : 0.0;
+  double C44_M = (C_M1.size() >= 5) ? C_M1[4] : 0.0;
 
-  nu_A[0] = 0.5 * (C_A[4] + C_A[5] - C_A[3]);
-  nu_A[1] = 0.5 * (C_A[3] + C_A[5] - C_A[4]);
-  nu_A[2] = 0.5 * (C_A[3] + C_A[4] - C_A[5]);
+  C_M1[0] = C11_M;               // C_M1_11
+  C_M1[1] = C11_M;               // C_M1_22
+  C_M1[2] = C33_M;               // C_M1_33
+  C_M1[3] = C44_M;               // C_M1_44
+  C_M1[4] = C44_M;               // C_M1_55
+  C_M1[5] = (C11_M - C12_M) / 2; // C_M1_66
+  C_M1[6] = C12_M;               // C_M1_12
+  C_M1[7] = C13_M;               // C_M1_13
+  C_M1[8] = C13_M;               // C_M1_23
 
-  lambda_M1[0] = C_M1[0] + C_M1[8] + 2 * C_M1[3] -
-                 (C_M1[6] + C_M1[7] + 2 * C_M1[4] + 2 * C_M1[5]);
-  lambda_M1[1] = C_M1[1] + C_M1[7] + 2 * C_M1[4] -
-                 (C_M1[6] + C_M1[8] + 2 * C_M1[3] + 2 * C_M1[5]);
-  lambda_M1[2] = C_M1[2] + C_M1[6] + 2 * C_M1[5] -
-                 (C_M1[7] + C_M1[8] + 2 * C_M1[3] + 2 * C_M1[4]);
+  kd1 = 0.0269978 - A0;
 
-  mu_M1[0] = 0.5 * (C_M1[6] + C_M1[7] - C_M1[8]);
-  mu_M1[1] = 0.5 * (C_M1[6] + C_M1[8] - C_M1[7]);
-  mu_M1[2] = 0.5 * (C_M1[7] + C_M1[8] - C_M1[6]);
+  // Compute elastic constants
+  // C_A and C_M are members initialized in constructor.
+  // We need to ensure they have correct size if not already.
+  // Constructor initializes them from parameters.
 
-  nu_M1[0] = 0.5 * (C_M1[4] + C_M1[5] - C_M1[3]);
-  nu_M1[1] = 0.5 * (C_M1[3] + C_M1[5] - C_M1[4]);
-  nu_M1[2] = 0.5 * (C_M1[3] + C_M1[4] - C_M1[5]);
+  // We assume C_A has 5 elements from input, but we need 9 for calculation?
+  // If input only gives 5, we need to map them.
+  // C_A[0] = C11, C_A[1] = C12...
+  // Let's check how they are stored in C_A vector.
+  // In Materials::parse_parameters, we pushed back 5 values.
+  // So C_A has size 5.
+  // But the code below uses indices up to 8!
+  // C_A[8] = C_A_23 which is same as C_A_13.
+
+  // We need to map the 5 input values to the 9 values expected by the logic.
+  // Or update the logic to use the 5 input values.
+
+  // Let's create a local helper or just map them.
+  // C11 = C_A[0]
+  // C12 = C_A[1]
+  // C13 = C_A[2]
+  // C33 = C_A[3]
+  // C44 = C_A[4]
+  // Already declared above at lines 86-91
+
+  // Let's populate the members lambda_A, mu_A, nu_A.
+  // They are Vector<double> of size 3.
+  // We need to ensure they are sized.
+  if (lambda_A.size() != 3)
+    lambda_A.reinit(3);
+  if (mu_A.size() != 3)
+    mu_A.reinit(3);
+  if (nu_A.size() != 3)
+    nu_A.reinit(3);
+
+  if (lambda_M1.size() != 3)
+    lambda_M1.reinit(3);
+  if (mu_M1.size() != 3)
+    mu_M1.reinit(3);
+  if (nu_M1.size() != 3)
+    nu_M1.reinit(3);
+
+  // Austenite
+  // 0: 11, 1: 22, 2: 33
+  // C_A indices in original code:
+  // 0:11, 1:22, 2:33, 3:44, 4:55, 5:66, 6:12, 7:13, 8:23
+
+  // Mapping from 5 inputs:
+  // C11 -> 0, 1
+  // C33 -> 2
+  // C44 -> 3, 4
+  // (C11-C12)/2 -> 5
+  // C12 -> 6
+  // C13 -> 7, 8
+
+  double c_a_0 = C11_A;
+  double c_a_1 = C11_A;
+  double c_a_2 = C33_A;
+  double c_a_3 = C44_A;
+  double c_a_4 = C44_A;
+  double c_a_5 = (C11_A - C12_A) / 2.0;
+  double c_a_6 = C12_A;
+  double c_a_7 = C13_A;
+  double c_a_8 = C13_A;
+
+  lambda_A[0] =
+      c_a_0 + c_a_8 + 2 * c_a_3 - (c_a_6 + c_a_7 + 2 * c_a_4 + 2 * c_a_5);
+  lambda_A[1] =
+      c_a_1 + c_a_7 + 2 * c_a_4 - (c_a_6 + c_a_8 + 2 * c_a_3 + 2 * c_a_5);
+  lambda_A[2] =
+      c_a_2 + c_a_6 + 2 * c_a_5 - (c_a_7 + c_a_8 + 2 * c_a_3 + 2 * c_a_4);
+
+  mu_A[0] = 0.5 * (c_a_6 + c_a_7 - c_a_8);
+  mu_A[1] = 0.5 * (c_a_6 + c_a_8 - c_a_7);
+  mu_A[2] = 0.5 * (c_a_7 + c_a_8 - c_a_6);
+
+  nu_A[0] = 0.5 * (c_a_4 + c_a_5 - c_a_3);
+  nu_A[1] = 0.5 * (c_a_3 + c_a_5 - c_a_4);
+  nu_A[2] = 0.5 * (c_a_3 + c_a_4 - c_a_5);
+
+  // Martensite constants already declared above (lines 104-108)
+
+  double c_m_0 = C11_M;
+  double c_m_1 = C11_M;
+  double c_m_2 = C33_M;
+  double c_m_3 = C44_M;
+  double c_m_4 = C44_M;
+  double c_m_5 = (C11_M - C12_M) / 2.0;
+  double c_m_6 = C12_M;
+  double c_m_7 = C13_M;
+  double c_m_8 = C13_M;
+
+  lambda_M1[0] =
+      c_m_0 + c_m_8 + 2 * c_m_3 - (c_m_6 + c_m_7 + 2 * c_m_4 + 2 * c_m_5);
+  lambda_M1[1] =
+      c_m_1 + c_m_7 + 2 * c_m_4 - (c_m_6 + c_m_8 + 2 * c_m_3 + 2 * c_m_5);
+  lambda_M1[2] =
+      c_m_2 + c_m_6 + 2 * c_m_5 - (c_m_7 + c_m_8 + 2 * c_m_3 + 2 * c_m_4);
+
+  mu_M1[0] = 0.5 * (c_m_6 + c_m_7 - c_m_8);
+  mu_M1[1] = 0.5 * (c_m_6 + c_m_8 - c_m_7);
+  mu_M1[2] = 0.5 * (c_m_7 + c_m_8 - c_m_6);
+
+  nu_M1[0] = 0.5 * (c_m_4 + c_m_5 - c_m_3);
+  nu_M1[1] = 0.5 * (c_m_3 + c_m_5 - c_m_4);
+  nu_M1[2] = 0.5 * (c_m_3 + c_m_4 - c_m_5);
+
+  // Populate M2 and M3 if needed (assuming isotropic-like or rotated
+  // properties) For now, just copy M1 to M2 and M3 if they are not set? The
+  // full version logic for M2/M3 is complex if they are rotated. But here we
+  // compute lambda/mu/nu which are scalar-like components in Voigt notation?
+  // No, they are vectors of 3 components.
+
+  // Let's assume M2 and M3 have same properties as M1 for now, as in original
+  // code original code used lambda_M_iso etc.
+
+  if (lambda_M2.size() != 3)
+    lambda_M2.reinit(3);
+  if (mu_M2.size() != 3)
+    mu_M2.reinit(3);
+  if (nu_M2.size() != 3)
+    nu_M2.reinit(3);
+
+  if (lambda_M3.size() != 3)
+    lambda_M3.reinit(3);
+  if (mu_M3.size() != 3)
+    mu_M3.reinit(3);
+  if (nu_M3.size() != 3)
+    nu_M3.reinit(3);
+
+  lambda_M2 = lambda_M1;
+  mu_M2 = mu_M1;
+  nu_M2 = nu_M1;
+
+  lambda_M3 = lambda_M1;
+  mu_M3 = mu_M1;
+  nu_M3 = nu_M1;
 
   // Invalidate cached elasticity tensors since Fe has changed
   tensors_initialized = false;

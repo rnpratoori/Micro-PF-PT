@@ -8,28 +8,25 @@
 #include "fesystem_str.h"
 #include "geometry_str.h"
 #include "materials_str.h"
+#include "restart_str.h"
 #include "time_str.h"
 
-namespace PhaseField
-{
-  using namespace dealii;
+namespace PhaseField {
+using namespace dealii;
 
-  typedef TrilinosWrappers::MPI::Vector vectorType;
-  typedef TrilinosWrappers::SparseMatrix matrixType;
+typedef TrilinosWrappers::MPI::Vector vectorType;
+typedef TrilinosWrappers::SparseMatrix matrixType;
 
-  namespace Parameters
-  {
+namespace Parameters {
 struct AllParameters : public FESystem,
-    public Geometry,
-    public Materials,
-    public Time
-  {
-    AllParameters(const std::string &input_file);
-    static void
-    declare_parameters(ParameterHandler &prm);
-    void
-    parse_parameters(ParameterHandler &prm);
-  };
+                       public Geometry,
+                       public Materials,
+                       public Restart,
+                       public Time {
+  AllParameters(const std::string &input_file);
+  static void declare_parameters(ParameterHandler &prm);
+  void parse_parameters(ParameterHandler &prm);
+};
 // }
 //
 // namespace PhaseField
@@ -41,29 +38,29 @@ struct AllParameters : public FESystem,
 //
 //   namespace Parameters
 //   {
-  // AllParameters::AllParameters(const std::string &input_file)
-  // {
-  //   ParameterHandler prm;
-  //   declare_parameters(prm);
-  //   prm.parse_input(input_file);
-  //   parse_parameters(prm);
-  // }
-  // void AllParameters::declare_parameters(ParameterHandler &prm)
-  // {
-  //   FESystem::declare_parameters(prm);
-  //   Geometry::declare_parameters(prm);
-  //   Materials::declare_parameters(prm);
-  //   Time::declare_parameters(prm);
-  // }
-  // void AllParameters::parse_parameters(ParameterHandler &prm)
-  // {
-  //   FESystem::parse_parameters(prm);
-  //   Geometry::parse_parameters(prm);
-  //   Materials::parse_parameters(prm);
-  //   Time::parse_parameters(prm);
-  // }
-}
-}
+// AllParameters::AllParameters(const std::string &input_file)
+// {
+//   ParameterHandler prm;
+//   declare_parameters(prm);
+//   prm.parse_input(input_file);
+//   parse_parameters(prm);
+// }
+// void AllParameters::declare_parameters(ParameterHandler &prm)
+// {
+//   FESystem::declare_parameters(prm);
+//   Geometry::declare_parameters(prm);
+//   Materials::declare_parameters(prm);
+//   Time::declare_parameters(prm);
+// }
+// void AllParameters::parse_parameters(ParameterHandler &prm)
+// {
+//   FESystem::parse_parameters(prm);
+//   Geometry::parse_parameters(prm);
+//   Materials::parse_parameters(prm);
+//   Time::parse_parameters(prm);
+// }
+} // namespace Parameters
+} // namespace PhaseField
 
 #endif
 

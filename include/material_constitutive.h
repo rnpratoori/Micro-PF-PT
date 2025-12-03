@@ -18,6 +18,8 @@
 #ifndef MATERIAL_CONSTITUTIVE_H
 #define MATERIAL_CONSTITUTIVE_H
 
+#include "dealiiheaders.h"
+#include "materials_str.h"
 #include "standardtensors.h"
 
 //////////// COMPUTE ELASTIC MODULUS AND STRESSES
@@ -48,14 +50,7 @@ public:
    * @param A Interaction parameter for phase transformation
    * @param delta_psi Chemical free energy difference
    */
-  Material_Constitutive(const double C_A_11, const double C_A_12,
-                        const double C_A_13, const double C_A_33,
-                        const double C_A_44, const double C_M_11,
-                        const double C_M_12, const double C_M_13,
-                        const double C_M_33, const double C_M_44,
-                        const double lambda_A_iso, const double mu_A_iso,
-                        const double lambda_M_iso, const double mu_M_iso,
-                        const double A, const double delta_psi);
+  Material_Constitutive(const Parameters::Materials &parameters);
 
   /** @brief Destructor */
   ~Material_Constitutive();
@@ -137,10 +132,7 @@ protected:
   Tensor<2, dim> EeEe;
   Tensor<2, dim> Rot_mat_2;
 
-  double C_A_11, C_A_12, C_A_13, C_A_33, C_A_44;
-  double C_M_11, C_M_12, C_M_13, C_M_33, C_M_44;
-  double lambda_A_iso, mu_A_iso;
-  double lambda_M_iso, mu_M_iso;
+  // Elastic property vectors (C_A and C_M1 initialized from parameters)
 
   Vector<double> C_A, C_M1, C_M2, C_M3;
   Vector<double> lambda_A, lambda_M1, lambda_M2, lambda_M3, lambda;

@@ -1,0 +1,57 @@
+   Number of active cells: 750
+   Total number of cells: 750
+   Number of degrees of freedom: 4224 (3168+1056)
+ Solving for Displacement:   
+0 -  rhs_norm : 0.161786    Number of CG iterations: 21
+1 -  rhs_norm : 0.00128789    Number of CG iterations: 21
+2 -  rhs_norm : 0.000439501    Number of CG iterations: 21
+3 -  rhs_norm : 0.000164238    Number of CG iterations: 20
+4 -  rhs_norm : 6.65822e-05    Number of CG iterations: 20
+5 -  rhs_norm : 2.84514e-05    Number of CG iterations: 21
+6 -  rhs_norm : 1.25341e-05    Number of CG iterations: 21
+CONVERGED! 
+
+Time step #1; advancing to t = 500.
+Solving for Volume fractions: 0+0+0   CG Solver iterations for C1, C2 and C3.
+ Solving for Displacement:   
+0 -  rhs_norm : 5.62313e-06    Number of CG iterations: 21
+1 -  rhs_norm : 2.55322e-06    Number of CG iterations: 21
+2 -  rhs_norm : 1.16967e-06    Number of CG iterations: 21
+3 -  rhs_norm : 5.3969e-07    Number of CG iterations: 20
+4 -  rhs_norm : 2.50526e-07    Number of CG iterations: 20
+5 -  rhs_norm : 1.16907e-07    Number of CG iterations: 20
+6 -  rhs_norm : 5.48063e-08    Number of CG iterations: 20
+7 -  rhs_norm : 2.5798e-08    Number of CG iterations: 20
+8 -  rhs_norm : 1.21872e-08    Number of CG iterations: 20
+9 -  rhs_norm : 5.77563e-09    Number of CG iterations: 20
+10 -  rhs_norm : 2.74483e-09    Number of CG iterations: 20
+11 -  rhs_norm : 1.3077e-09    Number of CG iterations: 20
+12 -  rhs_norm : 6.24382e-10    Number of CG iterations: 20
+CONVERGED! 
+
+Time step #2; advancing to t = 1000.
+Solving for Volume fractions: 0+0+0   CG Solver iterations for C1, C2 and C3.
+ Solving for Displacement:   
+0 -  rhs_norm : 0.16141    Number of CG iterations: 21
+1 -  rhs_norm : 0.00129258    Number of CG iterations: 21
+2 -  rhs_norm : 0.000442608    Number of CG iterations: 21
+3 -  rhs_norm : 0.000166045    Number of CG iterations: 20
+4 -  rhs_norm : 6.75815e-05    Number of CG iterations: 20
+5 -  rhs_norm : 2.89893e-05    Number of CG iterations: 21
+6 -  rhs_norm : 1.28189e-05    Number of CG iterations: 21
+CONVERGED! 
+
+
++---------------------------------------------+------------+------------+
+| Total wallclock time elapsed since start    |      10.5s |            |
+|                                             |            |            |
+| Section                         | no. calls |  wall time | % of total |
++---------------------------------+-----------+------------+------------+
+| Grid Generation                 |         1 |    0.0232s |      0.22% |
+| Output Results                  |         3 |    0.0959s |      0.92% |
+| Solve Linear System             |        27 |      2.23s |        21% |
+| Solve Nonlinear Timestep        |         3 |      9.55s |        91% |
+| Solve Phase Field               |         2 |     0.401s |       3.8% |
+| System Setup                    |         1 |      10.5s |     1e+02% |
++---------------------------------+-----------+------------+------------+
+

@@ -25,6 +25,7 @@
 #include "dealiiheaders.h"
 #include "fesystem_str.h"
 #include "pointhistory.h"
+#include "restart_str.h"
 #include "timestep.h"
 
 namespace PhaseField {
@@ -92,6 +93,18 @@ private:
 
   /** @brief Update material state at all quadrature points */
   void update_qph_incremental();
+
+  /** @brief Write quadrature point data to file for visualization */
+  void writeQuadratureOutput(const unsigned int &cycle) const;
+
+  /** @brief Save simulation state for restart */
+  void save_checkpoint();
+
+  /** @brief Load simulation state from checkpoint */
+  void load_checkpoint();
+
+  /** @brief Load time state from checkpoint */
+  void load_time();
 
   /** @brief Write VTU output files for visualization */
   void output_results() const;

@@ -37,7 +37,9 @@ double InitialValues<dim>::value(const Point<dim> & /*p*/,
   //                   else
   //                       return 0;
   //                }
-  //               else if (time_step==0)
+  // Simple uniform perturbation for variant 1
+  if (variant == 1)
+    return 0.01;
   return 0.0;
 }
 

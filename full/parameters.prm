@@ -1,30 +1,23 @@
 # Listing of Parameters
 # ---------------------
-subsection Restart
-  set restart = false
-end
-
 subsection Finite element system
   # Displacement system polynomial order
-  set Polynomial degree - displacement = 1
+  set Polynomial degree - displacement  = 1 
 
-  # Gauss quadrature order
-  set Quadrature order - displacement = 2
+  # Displacement system Gauss quadrature order
+  set Quadrature order - displacement   = 2
 
   # Concentration system polynomial order
-  set Polynomial degree - concentration = 1
+  set Polynomial degree - concentration = 1 
 
-  # Concentration quadrature order
-  set Quadrature order - concentration = 2
+  # Concentration system Gauss quadrature order
+  set Quadrature order - concentration  = 2
 end
 
 
 subsection Geometry
   # Global refinement level
-  set Global refinement   = 5
-
-  # Global grid scaling factor
-  set Grid scale          = 1
+  set Global refinement = lvl
 end
 
 
@@ -42,6 +35,12 @@ subsection Material properties
   set C33 martensite = 195.6
   set C44 martensite = 033.7
 
+  # lattice geometry
+  set a alpha = 3.2317
+  set c alpha = 5.1450
+  set a omega = 5.0320
+  set c omega = 3.1289
+
   # kinetic coeff
   set kinetic coeff = 5e-4
 
@@ -49,23 +48,22 @@ subsection Material properties
   set interaction parameter = 0.0286312
 
   # thermal jump
-  set thermal jump = 0.0069978
+  set thermal jump = 0.0515985
 
-  # limiting threshold
-  set limiting threshold = 0.0069978
-
-  # lattice geometry
-  set a alpha = 3.2317
-  set c alpha = 5.1450
-  set a omega = 5.0320
-  set c omega = 3.1289
+  # threshold
+  set limiting threshold = 0.0286312
 end
 
 
 subsection Time
-  # End time
-  set end time       = 1000
+  # end time
+  set end time       = 1e7
 
-  # Time step size
-  set time step = 100
+  # time step
+  set time step      = 100
+end
+
+subsection Restart
+  # restart a simulation
+  set Restart = false
 end
